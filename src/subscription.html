@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Manage your annual membership subscription to CEOs & Entrepreneurs Conversations." />
+    <title>Membership Subscription | CEOs & Entrepreneurs Conversations</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body class="subscription-body" data-auth-role="member">
+    <script>document.documentElement.classList.add('auth-pending');</script>
+    <header class="site-header">
+      <div class="container nav-wrap">
+        <a href="index.html" class="brand" aria-label="KG Multisector Limited home">
+          <img src="assets/kg-logo.png" alt="KG Multisector Limited logo" class="brand-logo" />
+        </a>
+        <button class="menu-toggle" aria-label="Toggle navigation" aria-expanded="false"><span></span><span></span><span></span></button>
+        <nav class="main-nav" aria-label="Main navigation">
+          <a href="member-dashboard.html">Dashboard</a>
+          <a href="member-network.html">Network</a>
+          <a href="events.html">Events</a>
+          <a href="subscription.html" class="active">Subscription</a>
+        </nav>
+        <div class="nav-actions"><a href="member-settings.html" class="btn btn-ghost">Profile settings</a></div>
+      </div>
+    </header>
+
+    <main class="subscription-page">
+      <section class="resource-hero">
+        <div class="container resource-hero-inner">
+          <div>
+            <p class="section-kicker">Membership subscription</p>
+            <h1>Renew your place in the network.</h1>
+            <p>Annual membership is <span data-subscription-fee>UGX 50,000</span>. Payments are checked by an administrator before your subscription is marked active.</p>
+          </div>
+          <div class="hero-callout">
+            <strong>Annual fee · <span data-subscription-fee>UGX 50,000</span></strong>
+            <p>MTN Mobile Money to <strong data-subscription-number>+256 778 617 690</strong><br />Account name: Gerald Kazungu</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="container subscription-shell">
+        <article class="panel-card-wide subscription-instructions">
+          <h2>How to pay by MTN Mobile Money</h2>
+          <ol>
+            <li>Send <span data-subscription-fee>UGX 50,000</span> to <strong data-subscription-number>+256 778 617 690</strong> (Gerald Kazungu).</li>
+            <li>Keep the transaction confirmation message and reference number.</li>
+            <li>Enter the phone number you paid from and the transaction reference below.</li>
+            <li>An administrator will check the payment. Your one-year subscription starts when it is verified.</li>
+          </ol>
+          <p>Do not send your PIN or account password. Submitting a reference does not itself confirm payment. To ask about another payment method, email <a href="mailto:kgmultisectorlimited@gmail.com">kgmultisectorlimited@gmail.com</a>.</p>
+        </article>
+
+        <section class="panel-card-wide subscription-claim">
+          <h2>Submit payment details</h2>
+          <form id="subscriptionPaymentForm">
+            <div class="form-grid">
+              <label><span>Phone number used to pay</span><input type="tel" name="phone" required maxlength="30" autocomplete="tel" /></label>
+              <label><span>MTN transaction reference</span><input type="text" name="reference" required minlength="4" maxlength="120" autocomplete="off" /></label>
+            </div>
+            <div class="form-actions"><button type="submit" class="btn btn-primary" id="subscriptionSubmit">Submit for verification</button></div>
+            <p id="subscriptionPaymentStatus" class="form-status" aria-live="polite"></p>
+          </form>
+        </section>
+
+        <section class="panel-card-wide">
+          <h2>Your subscription history</h2>
+          <p id="subscriptionHistoryStatus" class="form-status" aria-live="polite">Loading subscription status…</p>
+          <div id="subscriptionHistory" class="subscription-history"></div>
+        </section>
+
+        <section class="panel-card-wide" id="subscriptionAdminReview" data-admin-only hidden>
+          <h2>Payment verification queue</h2>
+          <p id="subscriptionAdminStatus" class="form-status" aria-live="polite">Loading payment submissions…</p>
+          <div id="subscriptionPaymentQueue" class="subscription-history"></div>
+        </section>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-grid">
+        <div class="footer-brand">
+          <div class="brand footer-brand-wrap"><img src="assets/kg-logo.png" alt="KG Multisector Limited logo" class="brand-logo" /></div>
+          <p class="footer-title">CEOs &amp; Entrepreneurs Conversations</p>
+          <p class="footer-tagline">Where Business Leaders Meet, Talk, Learn and Grow.</p>
+          <p class="powered-by">Powered by <strong>KG MULTISECTOR LIMITED</strong></p>
+        </div>
+        <div class="footer-links"><h3>Explore</h3><a href="index.html">Home</a><a href="member-dashboard.html">Dashboard</a></div>
+        <div class="footer-links"><h3>Membership</h3><a href="member-settings.html">Profile settings</a><a href="subscription.html">Subscription</a></div>
+        <div class="footer-links"><h3>Policies</h3><a href="community-guidelines.html">Community Guidelines</a><a href="privacy-policy.html">Privacy Policy</a><a href="terms.html">Terms</a></div>
+      </div>
+      <div class="container footer-bottom"><span>© <span id="year"></span> KG MULTISECTOR LIMITED</span><span>All rights reserved.</span></div>
+    </footer>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/supabase-auth-guard.js"></script>
+    <script src="js/main.js"></script>
+  </body>
+</html>

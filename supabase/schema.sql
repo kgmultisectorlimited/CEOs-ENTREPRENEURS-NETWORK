@@ -56,6 +56,8 @@ alter table public.profiles add column if not exists new_forum_activity boolean 
 alter table public.profiles add column if not exists show_profile boolean not null default true;
 alter table public.profiles add column if not exists allow_dm boolean not null default true;
 alter table public.profiles add column if not exists show_network_suggestions boolean not null default false;
+alter table public.profiles add column if not exists profile_photo text;
+alter table public.applications add column if not exists profile_photo text;
 
 do $$
 begin
@@ -79,6 +81,7 @@ create table if not exists public.forum_posts (
   created_at timestamptz not null default now()
 );
 alter table public.forum_posts add column if not exists user_id uuid references auth.users(id) on delete cascade;
+alter table public.forum_posts add column if not exists media_path text;
 
 create table if not exists public.forum_reports (
   id uuid primary key default gen_random_uuid(),
@@ -100,11 +103,22 @@ create table if not exists public.direct_messages (
   id uuid primary key default gen_random_uuid(),
   sender_profile_id uuid not null references public.profiles(id) on delete cascade,
   recipient_profile_id uuid not null references public.profiles(id) on delete cascade,
-  content text not null check (char_length(content) between 1 and 5000),
+  content text,
+  media_path text,
   created_at timestamptz not null default now(),
   read_at timestamptz,
   check (sender_profile_id <> recipient_profile_id)
 );
+alter table public.direct_messages add column if not exists media_path text;
+alter table public.direct_messages alter column content drop not null;
+alter table public.direct_messages drop constraint if exists direct_messages_content_check;
+alter table public.direct_messages drop constraint if exists direct_messages_content_or_media_check;
+alter table public.direct_messages
+  add constraint direct_messages_content_or_media_check
+  check (
+    (content is not null and char_length(content) between 1 and 5000)
+    or (content is null and media_path is not null)
+  );
 create index if not exists idx_direct_messages_sender_created
   on public.direct_messages(sender_profile_id, created_at desc);
 create index if not exists idx_direct_messages_recipient_created
@@ -117,14 +131,30 @@ create table if not exists public.resource_library (
   summary text not null check (char_length(summary) between 1 and 1500),
   content text,
   resource_url text,
+  media_path text,
   published boolean not null default true,
   created_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  check (content is not null or resource_url is not null)
+  check (content is not null or resource_url is not null or media_path is not null)
 );
 create index if not exists idx_resource_library_published_created
   on public.resource_library(published, created_at desc);
+alter table public.resource_library add column if not exists media_path text;
+alter table public.resource_library drop constraint if exists resource_library_check;
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'resource_library_content_or_media_check'
+      and conrelid = 'public.resource_library'::regclass
+  ) then
+    alter table public.resource_library
+      add constraint resource_library_content_or_media_check
+      check (content is not null or resource_url is not null or media_path is not null);
+  end if;
+end;
+$$;
 
 create table if not exists public.connection_requests (
   id uuid primary key default gen_random_uuid(),
@@ -272,6 +302,7 @@ alter table public.events add column if not exists event_type text not null defa
 alter table public.events add column if not exists price text;
 alter table public.events add column if not exists status text not null default 'published';
 alter table public.events add column if not exists rsvp_count integer not null default 0;
+alter table public.events add column if not exists media_path text;
 
 create table if not exists public.event_rsvps (
   id uuid primary key default gen_random_uuid(),
@@ -330,7 +361,7 @@ create index if not exists idx_notifications_user_id on public.notifications(use
 create or replace view public.member_directory
 with (security_invoker = false)
 as
-  select id, full_name, "current_role", company, location, linkedin, bio, allow_dm
+  select id, full_name, "current_role", company, location, linkedin, bio, allow_dm, profile_photo
   from public.profiles
   where show_profile = true;
 
@@ -647,3 +678,203 @@ create policy "Members can update own notifications"
   to authenticated
   using (user_id = auth.uid() or public.is_admin())
   with check (user_id = auth.uid() or public.is_admin());
+
+create table if not exists public.subscription_payments (
+  id uuid primary key default gen_random_uuid(),
+  profile_id uuid not null references public.profiles(id) on delete cascade,
+  amount_ugx integer not null default 50000 check (amount_ugx = 50000),
+  billing_period text not null default 'annual' check (billing_period = 'annual'),
+  payment_method text not null default 'MTN Mobile Money',
+  payer_phone text not null check (char_length(payer_phone) between 7 and 30),
+  transaction_reference text not null check (char_length(transaction_reference) between 4 and 120),
+  status text not null default 'pending' check (status in ('pending', 'verified', 'rejected')),
+  reviewed_by uuid references auth.users(id),
+  reviewed_at timestamptz,
+  expires_at timestamptz,
+  created_at timestamptz not null default now()
+);
+alter table public.subscription_payments add column if not exists expires_at timestamptz;
+create unique index if not exists idx_subscription_payments_reference
+  on public.subscription_payments (lower(transaction_reference));
+create index if not exists idx_subscription_payments_profile_created
+  on public.subscription_payments (profile_id, created_at desc);
+alter table public.subscription_payments enable row level security;
+revoke all on public.subscription_payments from anon, authenticated;
+grant select, insert on public.subscription_payments to authenticated;
+grant update (status, reviewed_by, reviewed_at) on public.subscription_payments to authenticated;
+drop policy if exists "Members can view own subscription payments" on public.subscription_payments;
+create policy "Members can view own subscription payments"
+  on public.subscription_payments for select
+  to authenticated
+  using (
+    public.is_admin()
+    or exists (
+      select 1 from public.profiles
+      where profiles.id = profile_id and profiles.auth_user_id = auth.uid()
+    )
+  );
+drop policy if exists "Members can submit own pending subscription payments" on public.subscription_payments;
+create policy "Members can submit own pending subscription payments"
+  on public.subscription_payments for insert
+  to authenticated
+  with check (
+    status = 'pending'
+    and reviewed_by is null
+    and reviewed_at is null
+    and exists (
+      select 1 from public.profiles
+      where profiles.id = profile_id and profiles.auth_user_id = auth.uid()
+    )
+  );
+drop policy if exists "Admins can review subscription payments" on public.subscription_payments;
+create policy "Admins can review subscription payments"
+  on public.subscription_payments for update
+  to authenticated
+  using (public.is_admin())
+  with check (
+    public.is_admin()
+    and status in ('verified', 'rejected')
+    and reviewed_by = auth.uid()
+    and reviewed_at is not null
+  );
+
+create or replace function public.set_subscription_payment_expiry()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.status = 'verified' and old.status is distinct from 'verified' then
+    new.expires_at := now() + interval '1 year';
+  elsif new.status <> 'verified' then
+    new.expires_at := null;
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists on_subscription_payment_verified on public.subscription_payments;
+create trigger on_subscription_payment_verified
+  before update of status on public.subscription_payments
+  for each row execute procedure public.set_subscription_payment_expiry();
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'community-media',
+  'community-media',
+  false,
+  52428800,
+  array['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf', 'video/mp4', 'video/webm']
+)
+on conflict (id) do update
+set public = false,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "Admins can read application photos" on storage.objects;
+create policy "Admins can read application photos"
+  on storage.objects for select
+  to authenticated
+  using (bucket_id = 'community-media' and (storage.foldername(name))[1] = 'applications' and public.is_admin());
+
+drop policy if exists "Applicants can upload application photos" on storage.objects;
+create policy "Applicants can upload application photos"
+  on storage.objects for insert
+  to anon, authenticated
+  with check (bucket_id = 'community-media' and (storage.foldername(name))[1] = 'applications');
+
+drop policy if exists "Members can read community media" on storage.objects;
+create policy "Members can read community media"
+  on storage.objects for select
+  to authenticated
+  using (
+    bucket_id = 'community-media'
+    and (storage.foldername(name))[1] in ('profiles', 'events', 'forum', 'resources')
+  );
+
+drop policy if exists "Message participants can read message attachments" on storage.objects;
+create policy "Message participants can read message attachments"
+  on storage.objects for select
+  to authenticated
+  using (
+    bucket_id = 'community-media'
+    and (storage.foldername(name))[1] = 'messages'
+    and exists (
+      select 1
+      from public.direct_messages dm
+      join public.profiles sender on sender.id = dm.sender_profile_id
+      join public.profiles recipient on recipient.id = dm.recipient_profile_id
+      where dm.id::text = (storage.foldername(name))[2]
+        and sender.auth_user_id::text = (storage.foldername(name))[3]
+        and auth.uid() in (sender.auth_user_id, recipient.auth_user_id)
+    )
+  );
+
+drop policy if exists "Members can upload own message attachments" on storage.objects;
+create policy "Members can upload own message attachments"
+  on storage.objects for insert
+  to authenticated
+  with check (
+    bucket_id = 'community-media'
+    and (storage.foldername(name))[1] = 'messages'
+    and (storage.foldername(name))[3] = auth.uid()::text
+  );
+
+drop policy if exists "Members can delete own message attachments" on storage.objects;
+create policy "Members can delete own message attachments"
+  on storage.objects for delete
+  to authenticated
+  using (
+    bucket_id = 'community-media'
+    and (storage.foldername(name))[1] = 'messages'
+    and (storage.foldername(name))[3] = auth.uid()::text
+  );
+
+drop policy if exists "Owners and admins can read subscription receipts" on storage.objects;
+create policy "Owners and admins can read subscription receipts"
+  on storage.objects for select
+  to authenticated
+  using (
+    bucket_id = 'community-media'
+    and (storage.foldername(name))[1] = 'subscriptions'
+    and ((storage.foldername(name))[2] = auth.uid()::text or public.is_admin())
+  );
+
+drop policy if exists "Members can upload own profile photos" on storage.objects;
+create policy "Members can upload own profile photos"
+  on storage.objects for insert
+  to authenticated
+  with check (bucket_id = 'community-media' and (storage.foldername(name))[1] = 'profiles' and (storage.foldername(name))[2] = auth.uid()::text);
+
+drop policy if exists "Members can delete own profile photos" on storage.objects;
+create policy "Members can delete own profile photos"
+  on storage.objects for delete
+  to authenticated
+  using (bucket_id = 'community-media' and (storage.foldername(name))[1] = 'profiles' and (storage.foldername(name))[2] = auth.uid()::text);
+
+drop policy if exists "Admins can manage event and resource media" on storage.objects;
+create policy "Admins can manage event and resource media"
+  on storage.objects for all
+  to authenticated
+  using (
+    bucket_id = 'community-media'
+    and (storage.foldername(name))[1] in ('events', 'resources')
+    and public.is_admin()
+  )
+  with check (
+    bucket_id = 'community-media'
+    and (storage.foldername(name))[1] in ('events', 'resources')
+    and public.is_admin()
+  );
+
+drop policy if exists "Members can manage their forum media" on storage.objects;
+create policy "Members can manage their forum media"
+  on storage.objects for all
+  to authenticated
+  using (bucket_id = 'community-media' and (storage.foldername(name))[1] = 'forum' and (storage.foldername(name))[2] = auth.uid()::text)
+  with check (bucket_id = 'community-media' and (storage.foldername(name))[1] = 'forum' and (storage.foldername(name))[2] = auth.uid()::text);
+
+drop policy if exists "Members can upload own subscription receipts" on storage.objects;
+create policy "Members can upload own subscription receipts"
+  on storage.objects for insert
+  to authenticated
+  with check (bucket_id = 'community-media' and (storage.foldername(name))[1] = 'subscriptions' and (storage.foldername(name))[2] = auth.uid()::text);

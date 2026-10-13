@@ -52,10 +52,16 @@
       element.textContent = result.profile.full_name || 'Member';
     });
     document.querySelectorAll('[data-profile-company]').forEach((element) => {
-      element.textContent = result.profile.company || '';
+      element.textContent = result.profile.company || 'Company not added yet';
     });
     document.querySelectorAll('[data-profile-role]').forEach((element) => {
       element.textContent = result.profile.current_role || 'Member';
+    });
+    document.querySelectorAll('[data-profile-location]').forEach((element) => {
+      element.textContent = result.profile.location || 'Not added yet';
+    });
+    document.querySelectorAll('[data-profile-bio]').forEach((element) => {
+      element.textContent = result.profile.bio || 'Add a short introduction in your profile settings.';
     });
 
     const initials = (result.profile.full_name || 'M')
@@ -65,11 +71,25 @@
       .map((part) => part[0].toUpperCase())
       .join('');
     document.querySelectorAll('[data-profile-initials]').forEach((element) => {
-      element.textContent = initials;
+      if (result.profile.profile_photo_url) {
+        const image = document.createElement('img');
+        image.className = 'member-photo-avatar';
+        image.src = result.profile.profile_photo_url;
+        image.alt = '';
+        image.setAttribute('aria-hidden', 'true');
+        element.replaceChildren(image);
+      } else {
+        element.textContent = initials;
+      }
     });
 
     const settingsForm = document.getElementById('settingsForm');
     if (settingsForm) {
+      const photoPreview = document.getElementById('profilePhotoPreview');
+      if (photoPreview && result.profile.profile_photo_url) {
+        photoPreview.src = result.profile.profile_photo_url;
+        photoPreview.hidden = false;
+      }
       const fieldValues = {
         fullName: result.profile.full_name,
         email: result.profile.email,

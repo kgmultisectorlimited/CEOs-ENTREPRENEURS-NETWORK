@@ -53,7 +53,11 @@ The workflow in `.github/workflows/pages.yml` publishes the contents of `src/` w
 The repository must be connected to GitHub and pushed before the workflow can deploy. The working folder used during development was not connected to a Git repository, so deployment still requires pushing these files to the intended GitHub repository.
 
 ## Supabase Setup
-Database-backed pages use the Supabase project configured in `src/js/supabase-config.js`. When applying database updates, run the latest `supabase/schema.sql` in that project's Supabase SQL Editor. The schema includes event RSVPs, forum moderation reports, private messages, resource-library entries, connection requests, notifications, and their row-level security policies. Resource files are shared using HTTPS links; uploads are not configured.
+Database-backed pages use the Supabase project configured in `src/js/supabase-config.js`. When applying database updates, run the latest `supabase/schema.sql` in that project's Supabase SQL Editor. The schema includes event RSVPs, forum moderation reports, private messages, resource-library entries, connection requests, notifications, subscription-payment review, and row-level security policies. The private `community-media` Storage bucket supports member and applicant profile photos, direct-message and forum attachments, event media, and resource files. Upload size is limited to 50 MB (profile photos to 5 MB) and access is controlled by Storage policies; direct-message attachments are available only to the conversation participants.
+
+Annual network subscriptions are UGX 50,000 and currently use a manual MTN Mobile Money reference check. Members submit the payer phone number and transaction reference; an administrator must verify the payment before the one-year subscription is marked active. This is not an automatic payment integration or auto-renewal.
+
+The site includes Privacy Policy, Terms, and Community Guidelines pages. These operational policy drafts should be reviewed by qualified counsel for the applicable jurisdictions before being treated as complete legal advice.
 
 Only the Supabase publishable/anon key belongs in the browser configuration. Never put a service-role key in frontend files. GitHub Pages serves the site publicly; keep member pages protected by Supabase authentication and row-level security.
 

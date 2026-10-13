@@ -101,6 +101,12 @@
                 <span>Description</span>
                 <textarea name="description" rows="3" maxlength="1500"></textarea>
               </label>
+              <label class="full-width">
+                <span>Event photo, flyer, or video</span>
+                <input type="file" name="mediaFile" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,video/mp4,video/webm" />
+                <small>Optional. JPG, PNG, WebP, GIF, PDF, MP4, or WebM; maximum 50 MB.</small>
+                <small id="eventMediaHint" aria-live="polite"></small>
+              </label>
             </div>
             <div class="form-actions">
               <button type="reset" class="btn btn-secondary" id="eventFormCancel">Clear form</button>

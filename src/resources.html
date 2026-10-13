@@ -78,6 +78,11 @@
               <label class="full-width"><span>Summary</span><textarea name="summary" rows="2" required maxlength="1500"></textarea></label>
               <label class="full-width"><span>Resource content (optional if you add a secure link)</span><textarea name="content" rows="5" maxlength="20000"></textarea></label>
               <label class="full-width"><span>HTTPS resource link (optional if you add content)</span><input name="resourceUrl" type="url" placeholder="https://…" /></label>
+              <label class="full-width">
+                <span>Resource file, flyer, or video (optional)</span>
+                <input type="file" name="mediaFile" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,video/mp4,video/webm" />
+                <small>JPG, PNG, WebP, GIF, PDF, MP4, or WebM; maximum 50 MB.</small>
+              </label>
               <label class="resource-published-control"><input name="published" type="checkbox" checked /> Publish to members</label>
             </div>
             <div class="form-actions">
@@ -98,6 +103,7 @@
           <p class="section-kicker alt-kicker" id="resourceDialogCategory"></p>
           <h2 id="resourceDialogTitle"></h2>
           <p id="resourceDialogContent"></p>
+          <div id="resourceDialogMedia" class="resource-dialog-media"></div>
           <a id="resourceDialogLink" class="btn btn-primary" target="_blank" rel="noopener noreferrer" hidden>Open resource</a>
         </dialog>
       </section>

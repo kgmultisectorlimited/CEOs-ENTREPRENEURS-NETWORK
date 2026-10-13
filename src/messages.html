@@ -82,9 +82,13 @@
           </div>
 
           <form class="message-composer" id="messageComposer">
-            <input type="text" name="message" maxlength="5000" placeholder="Write a message..." aria-label="Write a message" required />
+            <input type="text" name="message" maxlength="5000" placeholder="Write a message..." aria-label="Write a message" />
+            <label class="message-attachment"><span id="messageAttachmentName">Attach</span>
+              <input type="file" name="mediaFile" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,video/mp4,video/webm" aria-label="Attach a photo, document, or video" />
+            </label>
             <button type="submit" class="btn btn-primary small-btn" id="sendMessageButton" disabled>Send</button>
           </form>
+          <p class="message-attachment-note">Optional: attach a photo, flyer, PDF, or video (up to 50 MB).</p>
           <p class="form-status" id="newMessageStatus" aria-live="polite"></p>
           <div class="new-message-controls" id="newMessageControls" hidden>
             <label for="newMessageRecipient">Start a conversation</label>

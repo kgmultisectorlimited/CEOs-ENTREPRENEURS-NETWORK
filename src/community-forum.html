@@ -98,6 +98,10 @@
               <option>People</option>
             </select>
             <textarea name="discussion" placeholder="Start a thoughtful discussion..." aria-label="Start a discussion" rows="3"></textarea>
+            <label class="forum-attachment">
+              <span>Attach a photo, flyer, PDF, or short video (optional)</span>
+              <input type="file" name="mediaFile" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,video/mp4,video/webm" />
+            </label>
             <button type="submit" class="btn btn-primary small-btn">Post</button>
             <div class="form-status" id="forumStatus" aria-live="polite"></div>
           </form>

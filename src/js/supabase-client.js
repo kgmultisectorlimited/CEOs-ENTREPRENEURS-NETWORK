@@ -6,56 +6,9 @@
   };
 
   const fallbackSeed = {
-    applications: [
-      {
-        id: 'seed-application-1',
-        fullName: 'Amina Kabera',
-        email: 'amina@kgmultisector.com',
-        phone: '+254700000000',
-        location: 'Nairobi, Kenya',
-        company: 'KG Advisory',
-        position: 'Managing Director',
-        industry: 'Consulting',
-        yearsInBusiness: 9,
-        website: 'https://kgmultisector.com',
-        linkedin: 'https://linkedin.com/in/aminakabera',
-        whyJoin: 'To meet founders focused on long-term value creation.',
-        contribute: 'Leadership strategy and operating systems guidance.',
-        gain: 'High-quality leadership conversations and strategic introductions.',
-        referral: 'Founder referral',
-        status: 'approved'
-      }
-    ],
-    profiles: [
-      {
-        id: 'profile-amina',
-        full_name: 'Amina Kabera',
-        email: 'amina@kgmultisector.com',
-        current_role: 'Managing Director',
-        company: 'KG Advisory',
-        location: 'Nairobi, Kenya',
-        linkedin: 'https://linkedin.com/in/aminakabera',
-        bio: 'Founder-led operations, intentional leadership systems, and practical growth strategies for ambitious businesses.',
-        weekly_digest: true,
-        event_reminders: true,
-        mentions_replies: true,
-        new_forum_activity: false,
-        show_profile: true,
-        allow_dm: true,
-        show_network_suggestions: false,
-        role: 'member',
-        updated_at: new Date().toISOString()
-      }
-    ],
-    forum_posts: [
-      {
-        id: 'seed-forum-1',
-        author: 'Patricia M.',
-        topic: 'Leadership',
-        content: 'How are you thinking about leadership continuity as your company scales?',
-        created_at: new Date().toISOString()
-      }
-    ]
+    applications: [],
+    profiles: [],
+    forum_posts: []
   };
 
   const isConfigured = Boolean(
@@ -70,11 +23,103 @@
     : null;
 
   const storageKey = 'kg_msa_data';
+  const mediaBucket = 'community-media';
+  const subscriptionFeeUgx = 50000;
+  const subscriptionPaymentNumber = '+256 778 617 690';
+  const mediaMimeTypes = new Set([
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+    'application/pdf',
+    'video/mp4',
+    'video/webm'
+  ]);
+
+  function validateMediaFile(file, { imagesOnly = false, maxBytes = 50 * 1024 * 1024 } = {}) {
+    if (!file) return 'Choose a file first.';
+    if (!mediaMimeTypes.has(file.type) || (imagesOnly && !file.type.startsWith('image/'))) {
+      return imagesOnly
+        ? 'Profile photos must be JPG, PNG, WebP, or GIF images.'
+        : 'Choose a JPG, PNG, WebP, GIF, PDF, MP4, or WebM file.';
+    }
+    if (file.size > maxBytes) {
+      return `The selected file is too large. Maximum size is ${Math.round(maxBytes / (1024 * 1024))} MB.`;
+    }
+    return null;
+  }
+
+  function safeFileName(file) {
+    const extensions = {
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/webp': 'webp',
+      'image/gif': 'gif',
+      'application/pdf': 'pdf',
+      'video/mp4': 'mp4',
+      'video/webm': 'webm'
+    };
+    const extension = extensions[file.type] || '';
+    return `${crypto.randomUUID()}${extension ? `.${extension}` : ''}`;
+  }
+
+  function isSelectedFile(file) {
+    return typeof File !== 'undefined' && file instanceof File && file.size > 0;
+  }
+
+  async function uploadMedia(file, path, options = {}) {
+    const validation = validateMediaFile(file, options);
+    if (validation) throw new Error(validation);
+    const { data, error } = await client.storage.from(mediaBucket).upload(path, file, {
+      contentType: file.type,
+      upsert: false
+    });
+    if (error) throw new Error(`File upload failed: ${error.message}`);
+    return data.path;
+  }
+
+  async function createSignedMediaUrl(path) {
+    if (!path) return null;
+    const { data, error } = await client.storage.from(mediaBucket).createSignedUrl(path, 3600);
+    if (error) throw new Error(`A media attachment could not be opened: ${error.message}`);
+    return data.signedUrl;
+  }
+
+  async function removeMedia(path) {
+    if (!path) return;
+    const { error } = await client.storage.from(mediaBucket).remove([path]);
+    if (error) throw new Error(`Uploaded file could not be removed: ${error.message}`);
+  }
+
+  async function withSignedMedia(records, field) {
+    return Promise.all((records || []).map(async (record) => ({
+      ...record,
+      media_url: await createSignedMediaUrl(record[field])
+    })));
+  }
 
   function readLocalCache() {
     try {
       const raw = localStorage.getItem(storageKey);
-      return raw ? JSON.parse(raw) : fallbackSeed;
+      if (!raw) return fallbackSeed;
+      const data = JSON.parse(raw);
+      if (!data || typeof data !== 'object' || Array.isArray(data)) return fallbackSeed;
+
+      const cleaned = {
+        ...fallbackSeed,
+        ...data,
+        applications: Array.isArray(data.applications)
+          ? data.applications.filter((item) => item && item.id !== 'seed-application-1' && item.email !== 'amina@kgmultisector.com')
+          : [],
+        profiles: Array.isArray(data.profiles)
+          ? data.profiles.filter((item) => item && item.id !== 'profile-amina' && item.email !== 'amina@kgmultisector.com')
+          : [],
+        forum_posts: Array.isArray(data.forum_posts)
+          ? data.forum_posts.filter((item) => item && item.id !== 'seed-forum-1')
+          : []
+      };
+      if (JSON.stringify(cleaned) !== JSON.stringify(data)) writeLocalCache(cleaned);
+      return cleaned;
     } catch (error) {
       return fallbackSeed;
     }
@@ -137,6 +182,19 @@
       return { success: false, message: 'Supabase is not configured. Application was not submitted.' };
     }
 
+    let uploadedPhotoPath = null;
+    if (isSelectedFile(payload.profilePhoto)) {
+      try {
+        uploadedPhotoPath = await uploadMedia(
+          payload.profilePhoto,
+          `applications/${crypto.randomUUID()}/${safeFileName(payload.profilePhoto)}`,
+          { imagesOnly: true, maxBytes: 5 * 1024 * 1024 }
+        );
+      } catch (error) {
+        return { success: false, message: error.message };
+      }
+      normalized.profile_photo = uploadedPhotoPath;
+    }
     const { error } = await client
       .from('applications')
       .insert([normalized])
@@ -244,7 +302,25 @@
       return { success: false, message: 'Your session has expired. Sign in again to save profile changes.' };
     }
 
+    const currentProfile = await getCurrentProfile();
+    if (currentProfile.error || !currentProfile.profile) {
+      return { success: false, message: currentProfile.error || 'Member profile could not be verified.' };
+    }
     const normalized = normalizeProfile({ ...payload, id: user.id, email: user.email });
+    let profilePhotoPath = currentProfile.profile.profile_photo || null;
+    let uploadedPhotoPath = null;
+    if (isSelectedFile(payload.profilePhoto)) {
+      try {
+        uploadedPhotoPath = await uploadMedia(
+          payload.profilePhoto,
+          `profiles/${user.id}/${safeFileName(payload.profilePhoto)}`,
+          { imagesOnly: true, maxBytes: 5 * 1024 * 1024 }
+        );
+        profilePhotoPath = uploadedPhotoPath;
+      } catch (error) {
+        return { success: false, message: error.message };
+      }
+    }
     const { data, error } = await client
       .from('profiles')
       .update({
@@ -254,6 +330,7 @@
         location: normalized.location,
         linkedin: normalized.linkedin,
         bio: normalized.bio,
+        profile_photo: profilePhotoPath,
         weekly_digest: normalized.weekly_digest,
         event_reminders: normalized.event_reminders,
         mentions_replies: normalized.mentions_replies,
@@ -267,10 +344,14 @@
       .select();
 
     if (error) {
+      if (uploadedPhotoPath) await removeMedia(uploadedPhotoPath);
       return {
         success: false,
         message: `Profile changes were not saved: ${error.message}`
       };
+    }
+    if (uploadedPhotoPath && currentProfile.profile.profile_photo) {
+      await removeMedia(currentProfile.profile.profile_photo);
     }
 
     return {
@@ -289,16 +370,35 @@
     if (!profileResult.profile) {
       return { success: false, message: profileResult.error || 'Your member profile could not be verified.' };
     }
+    let mediaPath = null;
+    if (!String(payload.content || '').trim() && !isSelectedFile(payload.mediaFile)) {
+      return { success: false, message: 'Write a discussion or attach a file before posting.' };
+    }
+    if (String(payload.content || '').length > 5000) {
+      return { success: false, message: 'Discussion text must be 5,000 characters or fewer.' };
+    }
+    if (isSelectedFile(payload.mediaFile)) {
+      try {
+        mediaPath = await uploadMedia(
+          payload.mediaFile,
+          `forum/${profileResult.profile.auth_user_id}/${safeFileName(payload.mediaFile)}`
+        );
+      } catch (error) {
+        return { success: false, message: error.message };
+      }
+    }
     const post = {
       user_id: profileResult.profile.auth_user_id,
       author: profileResult.profile.full_name || 'Member',
       topic: payload.topic || 'General',
       content: payload.content || '',
+      media_path: mediaPath,
       created_at: new Date().toISOString()
     };
 
     const { data, error } = await client.from('forum_posts').insert([post]).select();
     if (error) {
+      if (mediaPath) await removeMedia(mediaPath);
       return {
         success: false,
         message: `Forum post was not published: ${error.message}`,
@@ -322,13 +422,13 @@
 
     const { data, error } = await client
       .from('forum_posts')
-      .select('id, user_id, author, topic, content, created_at')
+      .select('id, user_id, author, topic, content, media_path, created_at')
       .order('created_at', { ascending: false });
     if (error) {
       throw new Error(`Forum posts could not be loaded: ${error.message}`);
     }
 
-    return data || [];
+    return withSignedMedia(data, 'media_path');
   }
 
   async function reportForumPost(payload) {
@@ -421,9 +521,9 @@
     const [applicationsResult, countResult] = await Promise.all([
       client
         .from('applications')
-        .select('id, full_name, email, company, position, industry, status, created_at')
+        .select('id, full_name, email, phone, location, company, position, industry, years_in_business, website, linkedin, why_join, contribute, gain, referral, profile_photo, status, created_at')
         .order('created_at', { ascending: false })
-        .limit(6),
+        .limit(50),
       client
         .from('applications')
         .select('id', { count: 'exact', head: true })
@@ -431,7 +531,11 @@
     ]);
     if (applicationsResult.error) throw new Error(`Applications could not be loaded: ${applicationsResult.error.message}`);
     if (countResult.error) throw new Error(`Pending application count could not be loaded: ${countResult.error.message}`);
-    return { applications: applicationsResult.data || [], pendingCount: countResult.count || 0 };
+    const applications = await Promise.all((applicationsResult.data || []).map(async (application) => ({
+      ...application,
+      profile_photo_url: await createSignedMediaUrl(application.profile_photo)
+    })));
+    return { applications, pendingCount: countResult.count || 0 };
   }
 
   async function loadMemberDirectory() {
@@ -442,10 +546,13 @@
 
     const { data, error } = await client
       .from('member_directory')
-      .select('id, full_name, current_role, company, location, linkedin, bio, allow_dm')
+      .select('id, full_name, current_role, company, location, linkedin, bio, allow_dm, profile_photo')
       .order('full_name', { ascending: true });
     if (error) throw new Error(`Member directory could not be loaded: ${error.message}`);
-    return data || [];
+    return Promise.all((data || []).map(async (member) => ({
+      ...member,
+      profile_photo_url: await createSignedMediaUrl(member.profile_photo)
+    })));
   }
 
   async function loadDirectMessages() {
@@ -455,35 +562,60 @@
     if (!profileResult.profile) throw new Error('Sign in to view your messages.');
     const { data, error } = await client
       .from('direct_messages')
-      .select('id, sender_profile_id, recipient_profile_id, content, created_at, read_at')
+      .select('id, sender_profile_id, recipient_profile_id, content, media_path, created_at, read_at')
       .or(`sender_profile_id.eq.${profileResult.profile.id},recipient_profile_id.eq.${profileResult.profile.id}`)
       .order('created_at', { ascending: true });
     if (error) throw new Error(`Messages could not be loaded: ${error.message}`);
-    return { messages: data || [], profile: profileResult.profile };
+    return { messages: await withSignedMedia(data, 'media_path'), profile: profileResult.profile };
   }
 
-  async function sendDirectMessage(recipientProfileId, content) {
+  async function sendDirectMessage(recipientProfileId, payload) {
     if (!client) return { success: false, message: 'Supabase is not configured.' };
     const profileResult = await getCurrentProfile();
     if (profileResult.error) return { success: false, message: profileResult.error };
     if (!profileResult.profile) return { success: false, message: 'Sign in again to send a message.' };
-    const normalized = String(content || '').trim();
+    const normalized = String(payload.content || '').trim();
+    const mediaFile = isSelectedFile(payload.mediaFile) ? payload.mediaFile : null;
     if (!recipientProfileId || recipientProfileId === profileResult.profile.id) {
       return { success: false, message: 'Choose another member to message.' };
     }
-    if (!normalized || normalized.length > 5000) {
-      return { success: false, message: 'Messages must contain between 1 and 5,000 characters.' };
+    if ((!normalized && !mediaFile) || normalized.length > 5000) {
+      return { success: false, message: 'Enter a message or attach a file. Messages can be up to 5,000 characters.' };
+    }
+    const messageId = crypto.randomUUID();
+    let mediaPath = null;
+    if (mediaFile) {
+      try {
+        mediaPath = await uploadMedia(
+          mediaFile,
+          `messages/${messageId}/${profileResult.profile.auth_user_id}/${safeFileName(mediaFile)}`
+        );
+      } catch (error) {
+        return { success: false, message: error.message };
+      }
     }
     const { data, error } = await client
       .from('direct_messages')
       .insert([{
+        id: messageId,
         sender_profile_id: profileResult.profile.id,
         recipient_profile_id: recipientProfileId,
-        content: normalized
+        content: normalized || null,
+        media_path: mediaPath
       }])
-      .select('id, sender_profile_id, recipient_profile_id, content, created_at, read_at')
+      .select('id, sender_profile_id, recipient_profile_id, content, media_path, created_at, read_at')
       .single();
     if (error) {
+      if (mediaPath) {
+        try {
+          await removeMedia(mediaPath);
+        } catch (cleanupError) {
+          return {
+            success: false,
+            message: `Message could not be sent: ${error.message}. ${cleanupError.message}`
+          };
+        }
+      }
       return {
         success: false,
         message: error.code === '42501'
@@ -514,10 +646,10 @@
     if (includeDrafts) await requireAdmin();
     const { data, error } = await client
       .from('resource_library')
-      .select('id, title, category, summary, content, resource_url, published, created_at, updated_at')
+      .select('id, title, category, summary, content, resource_url, media_path, published, created_at, updated_at')
       .order('created_at', { ascending: false });
     if (error) throw new Error(`Resources could not be loaded: ${error.message}`);
-    return data || [];
+    return withSignedMedia(data, 'media_path');
   }
 
   async function saveResource(payload) {
@@ -535,8 +667,9 @@
     const summary = String(payload.summary || '').trim();
     const content = String(payload.content || '').trim();
     const resourceUrl = String(payload.resourceUrl || '').trim();
-    if (!title || !category || !summary || (!content && !resourceUrl)) {
-      return { success: false, message: 'Title, category, summary, and either resource content or a link are required.' };
+    const mediaFile = isSelectedFile(payload.mediaFile) ? payload.mediaFile : null;
+    if (!title || !category || !summary || (!content && !resourceUrl && !mediaFile)) {
+      return { success: false, message: 'Title, category, summary, and resource content, a link, or an attachment are required.' };
     }
     if (title.length > 180 || category.length > 80 || summary.length > 1500 || content.length > 20000) {
       return { success: false, message: 'A resource field is longer than its allowed limit.' };
@@ -552,12 +685,41 @@
         return { success: false, message: 'Resource links must use https://.' };
       }
     }
+    let existingMediaPath = null;
+    if (payload.id) {
+      const { data: existing, error: existingError } = await client
+        .from('resource_library')
+        .select('media_path')
+        .eq('id', payload.id)
+        .maybeSingle();
+      if (existingError) return { success: false, message: `Existing resource could not be checked: ${existingError.message}` };
+      if (!existing) return { success: false, message: 'Resource was not found.' };
+      existingMediaPath = existing.media_path;
+    }
+    let mediaPath = existingMediaPath;
+    let uploadedMediaPath = null;
+    if (mediaFile) {
+      try {
+        const profileResult = await getCurrentProfile();
+        if (profileResult.error || !profileResult.profile) {
+          return { success: false, message: profileResult.error || 'Administrator profile could not be verified.' };
+        }
+        uploadedMediaPath = await uploadMedia(
+          mediaFile,
+          `resources/${profileResult.profile.auth_user_id}/${safeFileName(mediaFile)}`
+        );
+        mediaPath = uploadedMediaPath;
+      } catch (error) {
+        return { success: false, message: error.message };
+      }
+    }
     const record = {
       title,
       category,
       summary,
       content: content || null,
       resource_url: resourceUrl || null,
+      media_path: mediaPath,
       published: payload.published === true || payload.published === 'on'
     };
     const query = payload.id
@@ -567,8 +729,15 @@
         created_by: profileResult.profile.auth_user_id
       }]);
     const { data, error } = await query.select('id').maybeSingle();
-    if (error) return { success: false, message: `Resource could not be saved: ${error.message}` };
-    if (!data) return { success: false, message: 'Resource was not found or could not be saved.' };
+    if (error) {
+      if (uploadedMediaPath) await removeMedia(uploadedMediaPath);
+      return { success: false, message: `Resource could not be saved: ${error.message}` };
+    }
+    if (!data) {
+      if (uploadedMediaPath) await removeMedia(uploadedMediaPath);
+      return { success: false, message: 'Resource was not found or could not be saved.' };
+    }
+    if (uploadedMediaPath && existingMediaPath) await removeMedia(existingMediaPath);
     return { success: true, message: payload.id ? 'Resource updated.' : 'Resource added.' };
   }
 
@@ -816,7 +985,10 @@
       .select('event_id')
       .eq('user_id', user.id);
     if (rsvpError) throw new Error(`Your event registrations could not be loaded: ${rsvpError.message}`);
-    return { events, rsvpedEventIds: (rsvps || []).map((rsvp) => rsvp.event_id) };
+    return {
+      events: await withSignedMedia(events, 'media_path'),
+      rsvpedEventIds: (rsvps || []).map((rsvp) => rsvp.event_id)
+    };
   }
 
   async function saveEvent(payload) {
@@ -826,6 +998,30 @@
     } catch (error) {
       return { success: false, message: error.message };
     }
+    const existingResult = payload.id
+      ? await client.from('events').select('media_path').eq('id', payload.id).maybeSingle()
+      : { data: null, error: null };
+    if (existingResult.error) {
+      return { success: false, message: `Existing event could not be checked: ${existingResult.error.message}` };
+    }
+    if (payload.id && !existingResult.data) return { success: false, message: 'Event was not found.' };
+    const existingMediaPath = existingResult.data?.media_path || null;
+    const mediaFile = isSelectedFile(payload.mediaFile) ? payload.mediaFile : null;
+    let uploadedMediaPath = null;
+    if (mediaFile) {
+      try {
+        const profileResult = await getCurrentProfile();
+        if (profileResult.error || !profileResult.profile) {
+          return { success: false, message: profileResult.error || 'Administrator profile could not be verified.' };
+        }
+        uploadedMediaPath = await uploadMedia(
+          mediaFile,
+          `events/${profileResult.profile.auth_user_id}/${safeFileName(mediaFile)}`
+        );
+      } catch (error) {
+        return { success: false, message: error.message };
+      }
+    }
     const event = {
       title: String(payload.title || '').trim(),
       event_type: String(payload.eventType || '').trim() || 'Community event',
@@ -833,12 +1029,15 @@
       date: payload.date ? new Date(payload.date).toISOString() : null,
       venue: String(payload.venue || '').trim(),
       seats_available: Number(payload.seatsAvailable || 0),
-      price: String(payload.price || '').trim()
+      price: String(payload.price || '').trim(),
+      media_path: uploadedMediaPath || existingMediaPath
     };
     if (!event.title || !event.date || !event.venue) {
+      if (uploadedMediaPath) await removeMedia(uploadedMediaPath);
       return { success: false, message: 'Event title, date, and venue are required.' };
     }
     if (!Number.isInteger(event.seats_available) || event.seats_available < 0) {
+      if (uploadedMediaPath) await removeMedia(uploadedMediaPath);
       return { success: false, message: 'Capacity must be zero (unlimited) or a positive whole number.' };
     }
 
@@ -848,8 +1047,12 @@
         .select('rsvp_count')
         .eq('id', payload.id)
         .maybeSingle();
-      if (currentError) return { success: false, message: `Event capacity could not be checked: ${currentError.message}` };
+      if (currentError) {
+        if (uploadedMediaPath) await removeMedia(uploadedMediaPath);
+        return { success: false, message: `Event capacity could not be checked: ${currentError.message}` };
+      }
       if (currentEvent && event.seats_available < currentEvent.rsvp_count) {
+        if (uploadedMediaPath) await removeMedia(uploadedMediaPath);
         return { success: false, message: `Capacity cannot be lower than the ${currentEvent.rsvp_count} existing RSVPs.` };
       }
     }
@@ -858,8 +1061,15 @@
       ? client.from('events').update(event).eq('id', payload.id)
       : client.from('events').insert([{ ...event, status: 'published' }]);
     const { data, error } = await query.select('*').maybeSingle();
-    if (error) return { success: false, message: `Event could not be saved: ${error.message}` };
-    if (!data) return { success: false, message: 'Event was not found or could not be saved.' };
+    if (error) {
+      if (uploadedMediaPath) await removeMedia(uploadedMediaPath);
+      return { success: false, message: `Event could not be saved: ${error.message}` };
+    }
+    if (!data) {
+      if (uploadedMediaPath) await removeMedia(uploadedMediaPath);
+      return { success: false, message: 'Event was not found or could not be saved.' };
+    }
+    if (uploadedMediaPath && existingMediaPath) await removeMedia(existingMediaPath);
     return { success: true, event: data, message: payload.id ? 'Event updated.' : 'Event created.' };
   }
 
@@ -916,6 +1126,96 @@
     return { success: true, data, message: 'Application status updated.' };
   }
 
+  async function loadSubscriptionPayments() {
+    if (!client) throw new Error('Supabase is not configured.');
+    const profileResult = await getCurrentProfile();
+    if (profileResult.error) throw new Error(profileResult.error);
+    if (!profileResult.profile) throw new Error('Sign in to view subscription status.');
+    const { data, error } = await client
+      .from('subscription_payments')
+      .select('id, amount_ugx, billing_period, payment_method, payer_phone, transaction_reference, status, reviewed_at, expires_at, created_at')
+      .eq('profile_id', profileResult.profile.id)
+      .order('created_at', { ascending: false });
+    if (error) throw new Error(`Subscription payments could not be loaded: ${error.message}`);
+    return { payments: data || [], profile: profileResult.profile };
+  }
+
+  async function submitSubscriptionPayment(payload) {
+    if (!client) return { success: false, message: 'Supabase is not configured.' };
+    const profileResult = await getCurrentProfile();
+    if (profileResult.error) return { success: false, message: profileResult.error };
+    if (!profileResult.profile) return { success: false, message: 'Sign in before submitting payment details.' };
+    const phone = String(payload.phone || '').trim();
+    const reference = String(payload.reference || '').trim();
+    if (phone.length < 7 || phone.length > 30 || reference.length < 4 || reference.length > 120) {
+      return { success: false, message: 'Enter the phone number used and a transaction reference (4–120 characters).' };
+    }
+    const { error } = await client.from('subscription_payments').insert([{
+      profile_id: profileResult.profile.id,
+      amount_ugx: subscriptionFeeUgx,
+      billing_period: 'annual',
+      payment_method: 'MTN Mobile Money',
+      payer_phone: phone,
+      transaction_reference: reference
+    }]);
+    if (error) {
+      if (error.code === '23505') {
+        return { success: false, message: 'That transaction reference has already been submitted.' };
+      }
+      return { success: false, message: `Payment details could not be submitted: ${error.message}` };
+    }
+    return { success: true, message: 'Payment details submitted. Your subscription will activate after an administrator verifies the transaction.' };
+  }
+
+  async function loadSubscriptionPaymentReviews() {
+    if (!client) throw new Error('Supabase is not configured.');
+    await requireAdmin();
+    const { data, error } = await client
+      .from('subscription_payments')
+      .select('id, amount_ugx, billing_period, payment_method, payer_phone, transaction_reference, status, created_at, profile:profiles!subscription_payments_profile_id_fkey(full_name, email, company)')
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if (error) throw new Error(`Subscription payments could not be loaded for review: ${error.message}`);
+    return data || [];
+  }
+
+  async function reviewSubscriptionPayment(paymentId, status) {
+    if (!client) return { success: false, message: 'Supabase is not configured.' };
+    if (!['verified', 'rejected'].includes(status)) {
+      return { success: false, message: 'Choose verified or rejected.' };
+    }
+    let user;
+    try {
+      await requireAdmin();
+      const result = await client.auth.getUser();
+      if (result.error || !result.data.user) {
+        return { success: false, message: result.error?.message || 'Sign in again to review payments.' };
+      }
+      user = result.data.user;
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+    const { data, error } = await client
+      .from('subscription_payments')
+      .update({
+        status,
+        reviewed_by: user.id,
+        reviewed_at: new Date().toISOString()
+      })
+      .eq('id', paymentId)
+      .eq('status', 'pending')
+      .select('id, status, expires_at')
+      .maybeSingle();
+    if (error) return { success: false, message: `Payment review could not be saved: ${error.message}` };
+    if (!data) return { success: false, message: 'Pending payment was not found or was already reviewed.' };
+    return {
+      success: true,
+      message: status === 'verified'
+        ? 'Payment verified. The annual subscription is active for one year.'
+        : 'Payment marked as rejected.'
+    };
+  }
+
   async function getCurrentProfile() {
     if (!client) return { profile: null, error: 'Supabase is not configured.' };
     const { data: { user }, error: userError } = await client.auth.getUser();
@@ -927,7 +1227,18 @@
       .eq('auth_user_id', user.id)
       .maybeSingle();
     if (error) return { profile: null, error: error.message };
-    return { profile: data || null, error: null };
+    if (!data) return { profile: null, error: null };
+    try {
+      return {
+        profile: {
+          ...data,
+          profile_photo_url: await createSignedMediaUrl(data.profile_photo)
+        },
+        error: null
+      };
+    } catch (mediaError) {
+      return { profile: null, error: mediaError.message };
+    }
   }
 
   async function signOut() {
@@ -974,6 +1285,12 @@
     cancelEvent,
     setEventRsvp,
     updateApplicationStatus,
+    loadSubscriptionPayments,
+    submitSubscriptionPayment,
+    loadSubscriptionPaymentReviews,
+    reviewSubscriptionPayment,
+    subscriptionFeeUgx,
+    subscriptionPaymentNumber,
     readLocalCache,
     writeLocalCache
   };

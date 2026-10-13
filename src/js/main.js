@@ -89,6 +89,49 @@ document.addEventListener('DOMContentLoaded', function () {
     element.textContent = message;
   };
 
+  function enhanceSiteFooters() {
+    const policyTargets = new Map([
+      ['Community Guidelines', 'community-guidelines.html'],
+      ['Privacy Policy', 'privacy-policy.html'],
+      ['Terms', 'terms.html']
+    ]);
+    document.querySelectorAll('.site-footer').forEach((footer) => {
+      footer.querySelectorAll('.footer-links a').forEach((link) => {
+        const target = policyTargets.get(link.textContent.trim());
+        if (target) link.href = target;
+        if (link.textContent.trim() === 'Contact' && link.getAttribute('href') === '#') {
+          link.href = 'mailto:kgmultisectorlimited@gmail.com';
+        }
+      });
+      if (footer.querySelector('[data-contact-footer]')) return;
+      const hasContactHeading = [...footer.querySelectorAll('.footer-links h3')]
+        .some((heading) => heading.textContent.trim() === 'Contact');
+      if (hasContactHeading) return;
+      const contact = document.createElement('div');
+      contact.className = 'footer-links';
+      contact.dataset.contactFooter = '';
+      const heading = document.createElement('h3');
+      heading.textContent = 'Contact';
+      const phone = document.createElement('a');
+      phone.href = 'tel:+256778617690';
+      phone.textContent = '+256 778 617 690';
+      const email = document.createElement('a');
+      email.href = 'mailto:kgmultisectorlimited@gmail.com';
+      email.textContent = 'kgmultisectorlimited@gmail.com';
+      contact.append(heading, phone, email);
+      footer.querySelector('.footer-grid')?.append(contact);
+    });
+  }
+
+  enhanceSiteFooters();
+
+  document.querySelectorAll('[data-subscription-fee]').forEach((element) => {
+    element.textContent = `UGX ${Number(window.KGData?.subscriptionFeeUgx || 50000).toLocaleString()}`;
+  });
+  document.querySelectorAll('[data-subscription-number]').forEach((element) => {
+    element.textContent = window.KGData?.subscriptionPaymentNumber || '+256 778 617 690';
+  });
+
   const readForm = (candidate) => Object.fromEntries(new FormData(candidate).entries());
 
   async function exportAdminMembers() {
@@ -151,7 +194,9 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!visibleMembers.length) {
       const empty = document.createElement('p');
       empty.className = 'form-status';
-      empty.textContent = 'No visible members match this filter.';
+      empty.textContent = networkMembers.some((member) => member.id !== networkProfile.id)
+        ? 'No visible members match this filter.'
+        : 'No other members are available yet.';
       networkGrid.append(empty);
     }
     visibleMembers.forEach((member, index) => {
@@ -161,7 +206,7 @@ document.addEventListener('DOMContentLoaded', function () {
       top.className = 'network-top';
       const avatar = document.createElement('div');
       avatar.className = `member-avatar ${['', 'alt', 'warm', 'dark', 'rose', 'blue'][index % 6]}`.trim();
-      avatar.textContent = initialsFor(member.full_name);
+      setMemberAvatar(avatar, member.profile_photo_url, member.full_name);
       const badge = document.createElement('span');
       badge.className = 'verified-tag';
       badge.textContent = 'Member';
@@ -246,6 +291,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (networkFeaturedMembers) {
       networkFeaturedMembers.replaceChildren();
+      if (!visibleMembers.length) {
+        const empty = document.createElement('li');
+        empty.textContent = 'No other members are available yet.';
+        networkFeaturedMembers.append(empty);
+      }
       visibleMembers.slice(0, 3).forEach((member) => {
         const item = document.createElement('li');
         const name = document.createElement('strong');
@@ -325,6 +375,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const description = document.createElement('p');
       description.className = 'card-description';
       description.textContent = event.description || 'A curated session for community members.';
+      const media = makeMediaNode(event.media_path, event.media_url, `${event.title} session attachment`);
       const info = document.createElement('div');
       info.className = 'card-info-row';
       const seats = document.createElement('span');
@@ -354,7 +405,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
       });
 
-      card.append(top, title, meta, description, info, rsvp);
+      card.append(top, title, meta, description);
+      if (media) card.append(media);
+      card.append(info, rsvp);
       conversationGrid.append(card);
     });
   }
@@ -425,8 +478,45 @@ document.addEventListener('DOMContentLoaded', function () {
             status.disabled = false;
           }
         });
-        item.append(details, status);
-        adminApplicationList.append(item);
+            const review = document.createElement('details');
+            review.className = 'application-review-details';
+            review.open = ['pending', 'review'].includes(application.status);
+            const summary = document.createElement('summary');
+            summary.textContent = 'Review full application';
+            const fields = document.createElement('dl');
+            fields.className = 'application-detail-list';
+            [
+              ['Phone', application.phone],
+              ['Location', application.location],
+              ['Company', application.company],
+              ['Position', application.position],
+              ['Industry', application.industry],
+              ['Years in business', application.years_in_business],
+              ['Website', application.website],
+              ['LinkedIn', application.linkedin],
+              ['Why join', application.why_join],
+              ['Can contribute', application.contribute],
+              ['Hopes to gain', application.gain],
+              ['Referred by', application.referral],
+              ['Submitted', formatRelativeDate(application.created_at)]
+            ].forEach(([label, value]) => {
+              if (value === null || value === undefined || value === '') return;
+              const term = document.createElement('dt');
+              term.textContent = label;
+              const description = document.createElement('dd');
+              description.textContent = String(value);
+              fields.append(term, description);
+            });
+            if (application.profile_photo_url) {
+              const photo = document.createElement('img');
+              photo.className = 'application-photo';
+              photo.src = application.profile_photo_url;
+              photo.alt = `${application.full_name} application profile`;
+              review.append(photo);
+            }
+            review.append(summary, fields);
+            item.append(details, review, status);
+            adminApplicationList.append(item);
       });
       if (!result.applications.length) setStatus(applicationReviewStatus, 'Application list is up to date.');
       else setStatus(applicationReviewStatus, '');
@@ -454,23 +544,28 @@ document.addEventListener('DOMContentLoaded', function () {
       const chart = document.querySelector('.chart-bars');
       if (chart) {
         chart.replaceChildren();
-        const maximum = Math.max(1, ...stats.monthlyMemberCounts);
-        stats.monthlyMemberCounts.forEach((count, index) => {
-          const bar = document.createElement('span');
-          bar.style.height = `${Math.max(8, Math.round((count / maximum) * 100))}%`;
-          const month = new Date();
-          month.setDate(1);
-          month.setMonth(month.getMonth() - (stats.monthlyMemberCounts.length - index - 1));
-          bar.title = `${new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' }).format(month)}: ${count} members joined`;
-          chart.append(bar);
-        });
-        chart.setAttribute('aria-label', 'Member signups by month for the last six months');
+        if (stats.monthlyMemberCounts.every((count) => count === 0)) {
+          chart.textContent = 'No member registrations yet.';
+        } else {
+          const maximum = Math.max(1, ...stats.monthlyMemberCounts);
+          stats.monthlyMemberCounts.forEach((count, index) => {
+            const bar = document.createElement('span');
+            bar.style.height = `${Math.max(8, Math.round((count / maximum) * 100))}%`;
+            const month = new Date();
+            month.setDate(1);
+            month.setMonth(month.getMonth() - (stats.monthlyMemberCounts.length - index - 1));
+            bar.title = `${new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' }).format(month)}: ${count} members joined`;
+            chart.append(bar);
+          });
+          chart.setAttribute('aria-label', 'Member signups by month for the last six months');
+        }
       }
     } catch (error) {
       document.getElementById('adminTotalMembers').textContent = '—';
       document.getElementById('adminUpcomingEvents').textContent = '—';
       document.getElementById('adminForumDiscussions').textContent = '—';
       document.getElementById('adminMemberGrowth').textContent = error.message;
+      document.querySelector('.chart-bars')?.replaceChildren();
     }
   }
 
@@ -545,6 +640,105 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
+  async function loadSubscriptionPage() {
+    const history = document.getElementById('subscriptionHistory');
+    const historyStatus = document.getElementById('subscriptionHistoryStatus');
+    const queue = document.getElementById('subscriptionPaymentQueue');
+    const queueStatus = document.getElementById('subscriptionAdminStatus');
+    if (!history || !window.KGData) return;
+    setStatus(historyStatus, 'Loading subscription status…');
+    try {
+      const result = await window.KGData.loadSubscriptionPayments();
+      const phoneInput = document.querySelector('#subscriptionPaymentForm [name="phone"]');
+      if (phoneInput && result.profile.phone) phoneInput.value = result.profile.phone;
+      history.replaceChildren();
+      const activePayment = result.payments.find((payment) =>
+        payment.status === 'verified' && payment.expires_at && new Date(payment.expires_at) > new Date()
+      );
+      setStatus(historyStatus, activePayment
+        ? `Your subscription is active until ${new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(activePayment.expires_at))}.`
+        : 'No active verified subscription was found.');
+      if (!result.payments.length) {
+        const empty = document.createElement('p');
+        empty.className = 'form-status';
+        empty.textContent = 'No subscription payments have been submitted yet.';
+        history.append(empty);
+      }
+      result.payments.forEach((payment) => {
+        const record = document.createElement('article');
+        record.className = 'subscription-record';
+        const heading = document.createElement('h3');
+        heading.textContent = `UGX ${Number(payment.amount_ugx).toLocaleString()} · ${payment.status}`;
+        const reference = document.createElement('p');
+        reference.textContent = `Reference: ${payment.transaction_reference} · Phone: ${payment.payer_phone}`;
+        const submitted = document.createElement('p');
+        submitted.textContent = `Submitted ${formatRelativeDate(payment.created_at)}`;
+        record.append(heading, reference, submitted);
+        if (payment.expires_at) {
+          const expiry = document.createElement('p');
+          expiry.textContent = `Valid until ${new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(payment.expires_at))}`;
+          record.append(expiry);
+        }
+        history.append(record);
+      });
+    } catch (error) {
+      history.replaceChildren();
+      setStatus(historyStatus, error.message, 'error');
+    }
+
+    if (!queue || !window.KG_IS_ADMIN) return;
+    setStatus(queueStatus, 'Loading payment submissions…');
+    try {
+      const payments = await window.KGData.loadSubscriptionPaymentReviews();
+      queue.replaceChildren();
+      if (!payments.length) {
+        const empty = document.createElement('p');
+        empty.className = 'form-status';
+        empty.textContent = 'No subscription payments have been submitted.';
+        queue.append(empty);
+      }
+      payments.forEach((payment) => {
+        const record = document.createElement('article');
+        record.className = 'subscription-record';
+        const heading = document.createElement('h3');
+        heading.textContent = payment.profile?.full_name || 'Member';
+        const details = document.createElement('p');
+        details.textContent = `${payment.profile?.email || ''}${payment.profile?.company ? ` · ${payment.profile.company}` : ''}`;
+        const transaction = document.createElement('p');
+        transaction.textContent = `UGX ${Number(payment.amount_ugx).toLocaleString()} · ${payment.payment_method} · ${payment.payer_phone} · Ref: ${payment.transaction_reference}`;
+        const status = document.createElement('p');
+        status.textContent = `Status: ${payment.status} · Submitted ${formatRelativeDate(payment.created_at)}`;
+        record.append(heading, details, transaction, status);
+        if (payment.status === 'pending') {
+          [['verified', 'Verify payment'], ['rejected', 'Reject payment']].forEach(([nextStatus, label]) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = `btn ${nextStatus === 'verified' ? 'btn-primary' : 'btn-secondary'} small-btn`;
+            button.textContent = label;
+            button.addEventListener('click', async () => {
+              button.disabled = true;
+              try {
+                const review = await window.KGData.reviewSubscriptionPayment(payment.id, nextStatus);
+                if (!review.success) throw new Error(review.message);
+                setStatus(queueStatus, review.message, 'success');
+                await loadSubscriptionPage();
+              } catch (error) {
+                setStatus(queueStatus, error.message, 'error');
+                button.disabled = false;
+              }
+            });
+            record.append(button);
+          });
+        }
+        queue.append(record);
+      });
+      setStatus(queueStatus, `${payments.length} payment submission${payments.length === 1 ? '' : 's'} loaded.`);
+    } catch (error) {
+      queue.replaceChildren();
+      setStatus(queueStatus, error.message, 'error');
+    }
+  }
+
 function formatEventDate(date) {
   if (!date) return 'Date to be announced';
   const parsed = new Date(date);
@@ -568,6 +762,8 @@ function resetEventForm() {
   eventAdminForm.elements.namedItem('id').value = '';
   eventFormHeading.textContent = 'Create an event';
   eventFormSubmit.textContent = 'Create event';
+  const mediaHint = document.getElementById('eventMediaHint');
+  if (mediaHint) mediaHint.textContent = '';
 }
 
 async function loadEvents() {
@@ -608,6 +804,9 @@ async function loadEvents() {
       card.className = `event-card${index === 0 ? ' featured-event' : ''}${event.status === 'cancelled' ? ' is-cancelled' : ''}`;
       const image = document.createElement('div');
       image.className = `event-image image-${['one', 'two', 'three'][index % 3]}`;
+      const eventMedia = makeMediaNode(event.media_path, event.media_url, `${event.title} event attachment`);
+      if (eventMedia) image.append(eventMedia);
+      else image.classList.add('event-image-empty');
       const content = document.createElement('div');
       content.className = 'event-content';
       const topRow = document.createElement('div');
@@ -679,6 +878,8 @@ async function loadEvents() {
           eventAdminForm.elements.namedItem('seatsAvailable').value = String(event.seats_available || 0);
           eventAdminForm.elements.namedItem('price').value = event.price || '';
           eventAdminForm.elements.namedItem('description').value = event.description || '';
+          const mediaHint = document.getElementById('eventMediaHint');
+          if (mediaHint) mediaHint.textContent = event.media_path ? 'An attachment is already saved. Choose a file only to replace it.' : '';
           eventFormHeading.textContent = 'Edit event';
           eventFormSubmit.textContent = 'Save event';
           eventAdminForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -768,6 +969,7 @@ function renderForumPosts() {
     title.textContent = post.topic || 'Community discussion';
     const body = document.createElement('p');
     body.textContent = post.content;
+    const attachment = makeMediaNode(post.media_path, post.media_url, `${authorName} discussion attachment`);
     const actions = document.createElement('div');
     actions.className = 'post-actions';
     if (post.user_id !== window.KG_CURRENT_PROFILE?.auth_user_id) {
@@ -795,7 +997,9 @@ function renderForumPosts() {
       });
       actions.append(report);
     }
-    article.append(header, title, body, actions);
+    article.append(header, title, body);
+    if (attachment) article.append(attachment);
+    article.append(actions);
     forumPostList.append(article);
   });
 }
@@ -950,6 +1154,53 @@ function initialsFor(name) {
     .join('');
 }
 
+function makeMediaNode(path, url, label) {
+  if (!path || !url) return null;
+  const extension = path.split('.').pop().toLowerCase().split('?')[0];
+  if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(extension)) {
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.className = 'community-media-link';
+    const image = document.createElement('img');
+    image.src = url;
+    image.alt = label || 'Community attachment';
+    image.loading = 'lazy';
+    link.append(image);
+    return link;
+  }
+  if (['mp4', 'webm'].includes(extension)) {
+    const video = document.createElement('video');
+    video.src = url;
+    video.controls = true;
+    video.preload = 'metadata';
+    video.setAttribute('aria-label', label || 'Community video');
+    return video;
+  }
+  const link = document.createElement('a');
+  link.href = url;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.className = 'community-media-document';
+  link.textContent = `Open attachment${label ? `: ${label}` : ''}`;
+  return link;
+}
+
+function setMemberAvatar(element, photoUrl, name) {
+  if (!element) return;
+  if (photoUrl) {
+    const image = document.createElement('img');
+    image.className = 'member-photo-avatar';
+    image.src = photoUrl;
+    image.alt = '';
+    image.setAttribute('aria-hidden', 'true');
+    element.replaceChildren(image);
+    return;
+  }
+  element.textContent = initialsFor(name);
+}
+
 function renderMessages() {
   if (!chatList || !chatThread || !messageProfile) return;
   const memberById = new Map(messageDirectory.map((member) => [member.id, member]));
@@ -993,7 +1244,7 @@ function renderMessages() {
     item.setAttribute('aria-pressed', String(partnerId === activeMessagePartnerId));
     const avatar = document.createElement('span');
     avatar.className = `mini-avatar ${['', 'alt', 'warm'][index % 3]}`.trim();
-    avatar.textContent = initialsFor(partner.full_name);
+    setMemberAvatar(avatar, partner.profile_photo_url, partner.full_name);
     const copy = document.createElement('span');
     copy.className = 'chat-item-copy';
     const topline = document.createElement('span');
@@ -1047,12 +1298,17 @@ function renderMessages() {
   threadMessages.forEach((message) => {
     const bubble = document.createElement('article');
     bubble.className = `message ${message.sender_profile_id === messageProfile.id ? 'sent' : 'received'}`;
-    const body = document.createElement('p');
-    body.textContent = message.content;
+    if (message.content) {
+      const body = document.createElement('p');
+      body.textContent = message.content;
+      bubble.append(body);
+    }
+    const attachment = makeMediaNode(message.media_path, message.media_url, 'Message attachment');
+    if (attachment) bubble.append(attachment);
     const time = document.createElement('time');
     time.dateTime = message.created_at;
     time.textContent = new Intl.DateTimeFormat(undefined, { dateStyle: 'short', timeStyle: 'short' }).format(new Date(message.created_at));
-    bubble.append(body, time);
+    bubble.append(time);
     chatThread.append(bubble);
   });
   chatThread.scrollTop = chatThread.scrollHeight;
@@ -1157,9 +1413,13 @@ function renderResources() {
     top.append(category, state);
     const preview = document.createElement('div');
     preview.className = `resource-preview ${previews[index % previews.length]}`;
-    const previewLabel = document.createElement('span');
-    previewLabel.textContent = resource.resource_url ? 'Linked resource' : 'Member guide';
-    preview.append(previewLabel);
+    const resourceMedia = makeMediaNode(resource.media_path, resource.media_url, resource.title);
+    if (resourceMedia) preview.append(resourceMedia);
+    else {
+      const previewLabel = document.createElement('span');
+      previewLabel.textContent = resource.resource_url ? 'Linked resource' : 'Member guide';
+      preview.append(previewLabel);
+    }
     const title = document.createElement('h3');
     title.textContent = resource.title;
     const summary = document.createElement('p');
@@ -1171,11 +1431,11 @@ function renderResources() {
     const open = document.createElement('button');
     open.type = 'button';
     open.className = 'text-button';
-    open.textContent = resource.resource_url ? 'Open link' : 'Read guide';
+    open.textContent = resource.resource_url ? 'Open link' : resource.media_path ? 'Open resource' : 'Read guide';
     open.addEventListener('click', () => {
       if (resource.resource_url) {
         window.open(resource.resource_url, '_blank', 'noopener,noreferrer');
-        if (resource.content) showResourceDialog(resource);
+        if (resource.content || resource.media_path) showResourceDialog(resource);
       } else {
         showResourceDialog(resource);
       }
@@ -1213,6 +1473,12 @@ function showResourceDialog(resource) {
   document.getElementById('resourceDialogCategory').textContent = resource.category;
   document.getElementById('resourceDialogTitle').textContent = resource.title;
   document.getElementById('resourceDialogContent').textContent = resource.content || resource.summary;
+  const media = document.getElementById('resourceDialogMedia');
+  if (media) {
+    media.replaceChildren();
+    const node = makeMediaNode(resource.media_path, resource.media_url, resource.title);
+    if (node) media.append(node);
+  }
   const link = document.getElementById('resourceDialogLink');
   link.hidden = !resource.resource_url;
   if (resource.resource_url) link.href = resource.resource_url;
@@ -1421,12 +1687,7 @@ async function loadMemberDirectory() {
           top.className = 'member-top';
           const avatar = document.createElement('div');
           avatar.className = `member-avatar${index % 2 ? ' alt' : ''}`;
-          avatar.textContent = (member.full_name || 'Member')
-            .trim()
-            .split(/\s+/)
-            .slice(0, 2)
-            .map((part) => part[0].toUpperCase())
-            .join('');
+          setMemberAvatar(avatar, member.profile_photo_url, member.full_name);
           const badges = document.createElement('div');
           badges.className = 'member-badges';
           const verified = document.createElement('span');
@@ -1506,6 +1767,7 @@ async function loadMemberDirectory() {
     loadAdminDashboardStats();
     loadMemberNetwork();
     loadMemberDashboard();
+    loadSubscriptionPage();
   });
 
   document.querySelectorAll('[data-forum-topic]').forEach((item) => {
@@ -1608,6 +1870,11 @@ async function loadMemberDirectory() {
   });
 
   if (messageComposer) {
+    const mediaInput = messageComposer.elements.namedItem('mediaFile');
+    const attachmentName = document.getElementById('messageAttachmentName');
+    mediaInput.addEventListener('change', () => {
+      attachmentName.textContent = mediaInput.files[0]?.name || 'Attach';
+    });
     messageComposer.addEventListener('submit', async (event) => {
       event.preventDefault();
       const messageInput = messageComposer.elements.namedItem('message');
@@ -1616,11 +1883,17 @@ async function loadMemberDirectory() {
         return;
       }
       const sendButton = document.getElementById('sendMessageButton');
+      const mediaInput = messageComposer.elements.namedItem('mediaFile');
       sendButton.disabled = true;
       try {
-        const result = await window.KGData.sendDirectMessage(activeMessagePartnerId, messageInput.value);
+        const result = await window.KGData.sendDirectMessage(activeMessagePartnerId, {
+          content: messageInput.value,
+          mediaFile: mediaInput.files[0] || null
+        });
         if (!result.success) throw new Error(result.message);
         messageInput.value = '';
+        mediaInput.value = '';
+        attachmentName.textContent = 'Attach';
         await loadMessages();
         setStatus(messageStatus, result.message, 'success');
       } catch (error) {
@@ -1665,6 +1938,8 @@ async function loadMemberDirectory() {
         eventAdminForm.elements.namedItem('id').value = '';
         eventFormHeading.textContent = 'Create an event';
         eventFormSubmit.textContent = 'Create event';
+        const mediaHint = document.getElementById('eventMediaHint');
+        if (mediaHint) mediaHint.textContent = '';
       }, 0);
     });
     eventAdminForm.addEventListener('submit', async (event) => {
@@ -1702,6 +1977,25 @@ async function loadMemberDirectory() {
   }
 
   if (form && formStatus) {
+    const applicationPhotoInput = form.elements.namedItem('profilePhoto');
+    const applicationPhotoPreview = document.getElementById('applicationPhotoPreview');
+    applicationPhotoInput?.addEventListener('change', () => {
+      const selectedPhoto = applicationPhotoInput.files?.[0];
+      if (!selectedPhoto || !applicationPhotoPreview) return;
+      if (!selectedPhoto.type.startsWith('image/') || selectedPhoto.size > 5 * 1024 * 1024) {
+        applicationPhotoInput.value = '';
+        setStatus(formStatus, 'Choose a JPG, PNG, WebP, or GIF profile photo no larger than 5 MB.', 'error');
+        return;
+      }
+      applicationPhotoPreview.src = URL.createObjectURL(selectedPhoto);
+      applicationPhotoPreview.hidden = false;
+    });
+    form.addEventListener('reset', () => {
+      if (applicationPhotoPreview) {
+        applicationPhotoPreview.removeAttribute('src');
+        applicationPhotoPreview.hidden = true;
+      }
+    });
     form.addEventListener('submit', async function (event) {
       event.preventDefault();
       const payload = readForm(form);
@@ -1717,7 +2011,13 @@ async function loadMemberDirectory() {
       try {
         const result = await service.submitApplication(payload);
         setStatus(formStatus, result.message || 'Application submitted.', result.success ? 'success' : 'error');
-        if (result.success) form.reset();
+        if (result.success) {
+          form.reset();
+          if (applicationPhotoPreview) {
+            applicationPhotoPreview.removeAttribute('src');
+            applicationPhotoPreview.hidden = true;
+          }
+        }
       } catch (error) {
         setStatus(formStatus, `Application could not be submitted: ${error.message}`, 'error');
       }
@@ -1807,6 +2107,24 @@ async function loadMemberDirectory() {
   }
 
   if (settingsForm && settingsStatus) {
+    const profilePhotoInput = settingsForm.elements.namedItem('profilePhoto');
+    const profilePhotoPreview = document.getElementById('profilePhotoPreview');
+    profilePhotoInput?.addEventListener('change', () => {
+      const selectedPhoto = profilePhotoInput.files?.[0];
+      if (!selectedPhoto || !profilePhotoPreview) return;
+      if (selectedPhoto.size > 5 * 1024 * 1024) {
+        profilePhotoInput.value = '';
+        setStatus(settingsStatus, 'Profile photos must be 5 MB or smaller.', 'error');
+        return;
+      }
+      if (!selectedPhoto.type.startsWith('image/')) {
+        profilePhotoInput.value = '';
+        setStatus(settingsStatus, 'Choose a supported image file for your profile photo.', 'error');
+        return;
+      }
+      profilePhotoPreview.src = URL.createObjectURL(selectedPhoto);
+      profilePhotoPreview.hidden = false;
+    });
     settingsForm.addEventListener('submit', async function (event) {
       event.preventDefault();
       const payload = readForm(settingsForm);
@@ -1828,6 +2146,7 @@ async function loadMemberDirectory() {
           location: payload.location,
           linkedin: payload.linkedin,
           bio: payload.bio,
+          profilePhoto: payload.profilePhoto,
           weeklyDigest: payload.weeklyDigest === 'on',
           eventReminders: payload.eventReminders === 'on',
           mentionsReplies: payload.mentionsReplies === 'on',
@@ -1836,6 +2155,18 @@ async function loadMemberDirectory() {
           allowDm: payload.allowDm === 'on',
           showNetworkSuggestions: payload.showNetworkSuggestions === 'on'
         });
+        const selectedPhoto = settingsForm.elements.namedItem('profilePhoto')?.files?.[0];
+        if (result.success && selectedPhoto && profilePhotoPreview) {
+          const previewUrl = profilePhotoPreview.src;
+          document.querySelectorAll('[data-profile-initials]').forEach((element) => {
+            const image = document.createElement('img');
+            image.className = 'member-photo-avatar';
+            image.src = previewUrl;
+            image.alt = '';
+            image.setAttribute('aria-hidden', 'true');
+            element.replaceChildren(image);
+          });
+        }
         setStatus(settingsStatus, result.message || 'Settings saved.', result.success ? 'success' : 'error');
       } catch (error) {
         setStatus(settingsStatus, `Settings could not be saved: ${error.message}`, 'error');
@@ -1843,16 +2174,42 @@ async function loadMemberDirectory() {
     });
   }
 
+  const subscriptionPaymentForm = document.getElementById('subscriptionPaymentForm');
+  const subscriptionPaymentStatus = document.getElementById('subscriptionPaymentStatus');
+  subscriptionPaymentForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const submit = document.getElementById('subscriptionSubmit');
+    submit.disabled = true;
+    setStatus(subscriptionPaymentStatus, 'Submitting transaction details…');
+    try {
+      const values = readForm(subscriptionPaymentForm);
+      const result = await window.KGData.submitSubscriptionPayment({
+        phone: values.phone,
+        reference: values.reference
+      });
+      if (!result.success) throw new Error(result.message);
+      subscriptionPaymentForm.elements.namedItem('reference').value = '';
+      setStatus(subscriptionPaymentStatus, result.message, 'success');
+      await loadSubscriptionPage();
+    } catch (error) {
+      setStatus(subscriptionPaymentStatus, error.message, 'error');
+    } finally {
+      submit.disabled = false;
+    }
+  });
+
   if (forumForm && forumStatus && forumFeed) {
     const textInput = forumForm.querySelector('textarea[name="discussion"]');
     const topicInput = forumForm.elements.namedItem('topic');
+    const mediaInput = forumForm.elements.namedItem('mediaFile');
 
     forumForm.addEventListener('submit', async function (event) {
       event.preventDefault();
       const content = (textInput && textInput.value || '').trim();
       const topicName = topicInput?.value || 'General';
-      if (!content) {
-        setStatus(forumStatus, 'Please write a thoughtful discussion before posting.', 'error');
+      const mediaFile = mediaInput?.files?.[0] || null;
+      if (!content && !mediaFile) {
+        setStatus(forumStatus, 'Write a discussion or attach a file before posting.', 'error');
         return;
       }
 
@@ -1864,7 +2221,7 @@ async function loadMemberDirectory() {
 
       let result;
       try {
-        result = await service.createForumPost({ topic: topicName, content });
+        result = await service.createForumPost({ topic: topicName, content, mediaFile });
       } catch (error) {
         setStatus(forumStatus, `Discussion could not be posted: ${error.message}`, 'error');
         return;

@@ -39,6 +39,7 @@
           <a href="resources.html">Resources</a>
           <a href="notifications.html">Notifications</a>
           <a href="community-forum.html">Forum</a>
+          <a href="subscription.html">Subscription</a>
         </nav>
 
         <div class="nav-actions">
@@ -94,7 +95,7 @@
             <div class="form-grid settings-grid">
               <label>
                 <span>Full name</span>
-                <input type="text" name="fullName" value="Amina Kabera" />
+                <input type="text" name="fullName" value="" />
               </label>
 
               <label>
@@ -104,33 +105,42 @@
             </div>
 
             <div class="form-grid settings-grid">
+              <label class="full-width">
+                <span>Profile photo</span>
+                <img id="profilePhotoPreview" class="profile-photo-preview" alt="Current profile photo" hidden />
+                <input type="file" name="profilePhoto" accept="image/jpeg,image/png,image/webp,image/gif" />
+                <small>JPG, PNG, WebP, or GIF; maximum 5 MB.</small>
+              </label>
+            </div>
+
+            <div class="form-grid settings-grid">
               <label>
                 <span>Current role</span>
-                <input type="text" name="currentRole" value="Managing Director" />
+                <input type="text" name="currentRole" value="" />
               </label>
 
               <label>
                 <span>Company</span>
-                <input type="text" name="company" value="KG Advisory" />
+                <input type="text" name="company" value="" />
               </label>
             </div>
 
             <div class="form-grid settings-grid">
               <label>
                 <span>Location</span>
-                <input type="text" name="location" value="Nairobi, Kenya" />
+                <input type="text" name="location" value="" />
               </label>
 
               <label>
                 <span>LinkedIn</span>
-                <input type="text" name="linkedin" value="linkedin.com/in/aminakabera" />
+                <input type="text" name="linkedin" value="" />
               </label>
             </div>
 
             <div class="form-grid settings-grid">
               <label>
                 <span>Bio</span>
-                <textarea name="bio" rows="4">Founder-led operations, intentional leadership systems, and practical growth strategies for ambitious businesses.</textarea>
+                <textarea name="bio" rows="4"></textarea>
               </label>
             </div>
 

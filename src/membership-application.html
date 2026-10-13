@@ -58,12 +58,8 @@
             </p>
           </div>
           <div class="application-summary">
-            <div class="summary-badge">Founding 25</div>
-            <div class="summary-stat">
-              <strong>17</strong>
-              <span>/25 members joined</span>
-            </div>
-            <div class="progress-line"><span style="width: 68%"></span></div>
+            <div class="summary-badge">Membership</div>
+            <p>Each application is reviewed by the community team.</p>
           </div>
         </div>
       </section>
@@ -165,9 +161,11 @@
               <div class="form-section">
                 <h2>Upload profile photo</h2>
                 <label class="file-upload">
-                  <input type="file" name="profilePhoto" accept="image/*" />
+                  <input type="file" name="profilePhoto" accept="image/jpeg,image/png,image/webp,image/gif" />
                   <span>Choose a profile image</span>
                 </label>
+                <img id="applicationPhotoPreview" class="profile-photo-preview" alt="Selected profile photo preview" hidden />
+                <p class="form-hint">Optional. JPG, PNG, WebP, or GIF; maximum 5 MB.</p>
               </div>
 
               <div class="form-actions">
