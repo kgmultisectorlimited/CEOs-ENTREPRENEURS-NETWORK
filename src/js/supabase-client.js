@@ -1189,7 +1189,20 @@
         body: { applicationId }
       });
       if (error) {
-        const detail = error.context?.json?.error || error.message;
+        let detail = error.message;
+        const response = error.context;
+        if (response instanceof Response) {
+          const responseText = await response.clone().text();
+          if (responseText) {
+            try {
+              const responseBody = JSON.parse(responseText);
+              detail = responseBody.error || responseBody.message || responseText;
+            } catch {
+              detail = responseText;
+            }
+          }
+          detail = `HTTP ${response.status}: ${detail}`;
+        }
         return { success: false, message: `Invitation email could not be sent: ${detail}` };
       }
       return {
