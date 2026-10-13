@@ -1184,8 +1184,7 @@
   async function sendApprovedApplicantInvitation(applicationId) {
     if (!client) return { success: false, message: 'Supabase is not configured.' };
     try {
-      const profile = await requireAdmin();
-      if (!profile) return { success: false, message: 'Administrator access is required to invite applicants.' };
+      await requireAdmin();
       const { data, error } = await client.functions.invoke('send-member-invitation', {
         body: { applicationId }
       });
