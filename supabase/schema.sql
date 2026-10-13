@@ -17,10 +17,13 @@ create table if not exists public.applications (
   gain text,
   referral text,
   profile_photo text,
+  auth_user_id uuid unique references auth.users(id) on delete set null,
   status text not null default 'pending' check (status in ('pending', 'review', 'approved', 'rejected')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+alter table public.applications
+  add column if not exists auth_user_id uuid unique references auth.users(id) on delete set null;
 
 create table if not exists public.profiles (
   id uuid primary key default gen_random_uuid(),
@@ -396,18 +399,49 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  approved_application public.applications%rowtype;
 begin
-  insert into public.profiles (auth_user_id, full_name, email, "current_role", company)
+  select *
+    into approved_application
+  from public.applications
+  where lower(email) = lower(new.email)
+    and status = 'approved'
+    and auth_user_id is null
+  order by updated_at desc, created_at desc
+  limit 1
+  for update;
+
+  if not found then
+    raise exception 'An approved membership application is required to create an account.';
+  end if;
+
+  insert into public.profiles (
+    auth_user_id,
+    full_name,
+    email,
+    "current_role",
+    company,
+    phone,
+    location,
+    linkedin
+  )
   values (
     new.id,
-    coalesce(new.raw_user_meta_data ->> 'full_name', new.email),
+    approved_application.full_name,
     new.email,
-    new.raw_user_meta_data ->> 'current_role',
-    new.raw_user_meta_data ->> 'company'
-  )
-  on conflict (email) do update
-    set auth_user_id = excluded.auth_user_id,
-        updated_at = now();
+    approved_application.position,
+    approved_application.company,
+    approved_application.phone,
+    approved_application.location,
+    approved_application.linkedin
+  );
+
+  update public.applications
+  set auth_user_id = new.id,
+      updated_at = now()
+  where id = approved_application.id;
+
   return new;
 end;
 $$;
@@ -463,7 +497,7 @@ drop policy if exists "Anyone can submit an application" on public.applications;
 create policy "Anyone can submit an application"
   on public.applications for insert
   to anon, authenticated
-  with check (status = 'pending');
+  with check (status = 'pending' and auth_user_id is null);
 drop policy if exists "Admins can manage applications" on public.applications;
 create policy "Admins can manage applications"
   on public.applications for all

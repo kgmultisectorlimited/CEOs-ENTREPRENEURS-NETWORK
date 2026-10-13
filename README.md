@@ -1,7 +1,7 @@
-# KG Multisector Limited Web Application
+# KG CEC Network Website
 
 ## Overview
-KG Multisector Limited is a web application designed to provide users with a comprehensive platform for various services across multiple sectors. This project aims to deliver an intuitive user experience with a clean and modern interface.
+KG CEOs & Entrepreneurs Network (KG CEC NETWORK) is the executive community website operated by KG Multisector Limited. It helps business leaders apply for membership, connect, participate in conversations and events, and access member resources.
 
 ## Project Structure
 The project is organized as follows:
@@ -56,6 +56,11 @@ The repository must be connected to GitHub and pushed before the workflow can de
 Database-backed pages use the Supabase project configured in `src/js/supabase-config.js`. When applying database updates, run the latest `supabase/schema.sql` in that project's Supabase SQL Editor. The schema includes event RSVPs, forum moderation reports, private messages, resource-library entries, connection requests, notifications, subscription-payment review, and row-level security policies. The private `community-media` Storage bucket supports member and applicant profile photos, direct-message and forum attachments, event media, and resource files. Upload size is limited to 50 MB (profile photos to 5 MB) and access is controlled by Storage policies; direct-message attachments are available only to the conversation participants.
 
 Annual network subscriptions are UGX 50,000 and currently use a manual MTN Mobile Money reference check. Members submit the payer phone number and transaction reference; an administrator must verify the payment before the one-year subscription is marked active. This is not an automatic payment integration or auto-renewal.
+
+## Membership approval and account setup
+Approving an application does not sign the applicant in or create an account by itself. After approval, the administrator should notify the applicant to open `login.html`, choose **Set up your member account**, and register with the same email used on the approved application. The database trigger creates the member profile from that approved application and rejects account creation for emails without an approved application. Supabase then sends its configured email-confirmation link; the applicant must confirm their email and sign in. Once the member profile is created, the member count includes them.
+
+Enable email signup and email confirmation in Supabase Auth, and ensure the deployed `login.html` is an allowed redirect URL. The admin must notify the approved applicant; approval does not automatically send an invitation.
 
 The site includes Privacy Policy, Terms, and Community Guidelines pages. These operational policy drafts should be reviewed by qualified counsel for the applicable jurisdictions before being treated as complete legal advice.
 

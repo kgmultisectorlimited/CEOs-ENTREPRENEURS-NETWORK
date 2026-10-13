@@ -446,7 +446,13 @@ document.addEventListener('DOMContentLoaded', function () {
         business.textContent = [application.position, application.company].filter(Boolean).join(', ') || application.industry || 'Business profile not provided';
         const email = document.createElement('small');
         email.textContent = application.email;
-        details.append(name, business, email);
+        const accountState = document.createElement('small');
+        accountState.textContent = application.auth_user_id
+          ? 'Member account: set up'
+          : (application.status === 'approved'
+            ? 'Member account: applicant still needs to set it up'
+            : 'Member account: not created');
+        details.append(name, business, email, accountState);
 
         const status = document.createElement('select');
         status.className = 'application-status-select';
@@ -2050,6 +2056,50 @@ async function loadMemberDirectory() {
       }
     });
   }
+
+  const accountSetupForm = document.getElementById('accountSetupForm');
+  const accountSetupStatus = document.getElementById('accountSetupStatus');
+  const showAccountSetup = () => {
+    if (!loginForm || !accountSetupForm || !passwordRecoveryForm) return;
+    loginForm.hidden = true;
+    passwordRecoveryForm.hidden = true;
+    accountSetupForm.hidden = false;
+  };
+  document.getElementById('showAccountSetup')?.addEventListener('click', showAccountSetup);
+  document.getElementById('returnToLogin')?.addEventListener('click', () => {
+    if (!loginForm || !accountSetupForm) return;
+    accountSetupForm.hidden = true;
+    loginForm.hidden = false;
+    setStatus(accountSetupStatus, '');
+  });
+  accountSetupForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const values = readForm(accountSetupForm);
+    if (values.password !== values.confirmPassword) {
+      setStatus(accountSetupStatus, 'The passwords do not match.', 'error');
+      return;
+    }
+    const submit = document.getElementById('accountSetupSubmit');
+    submit.disabled = true;
+    setStatus(accountSetupStatus, 'Checking your approved application and creating your account…');
+    try {
+      const result = await window.KGData.signUpApprovedApplicant({
+        email: values.email,
+        password: values.password
+      });
+      if (!result.success) throw new Error(result.message);
+      accountSetupForm.reset();
+      setStatus(accountSetupStatus, result.message, 'success');
+      if (result.role) {
+        const nextPage = result.role === 'admin' ? 'admin-dashboard.html' : 'member-dashboard.html';
+        setTimeout(() => window.location.replace(nextPage), 900);
+      }
+    } catch (error) {
+      setStatus(accountSetupStatus, error.message, 'error');
+    } finally {
+      submit.disabled = false;
+    }
+  });
 
   const recoveryRequested = new URLSearchParams(window.location.search).has('password-recovery');
   const showPasswordRecovery = () => {

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Member Login | CEOs & Entrepreneurs Conversations</title>
+    <title>Member Login | KG CEOs & Entrepreneurs Network</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -70,7 +70,33 @@
               Not a member yet?
               <a href="membership-application.html">Apply to join</a>
             </p>
+            <p class="auth-switch">
+              Has your application been approved?
+              <button type="button" class="text-button" id="showAccountSetup">Set up your member account</button>
+            </p>
             <div class="form-status auth-status" id="loginStatus" aria-live="polite"></div>
+          </form>
+          <form class="auth-form" id="accountSetupForm" hidden>
+            <div class="auth-copy">
+              <p class="section-kicker">Application approved</p>
+              <h2>Set up your member account</h2>
+              <p>Use the same email address as your approved application. We will email you a confirmation link before you can sign in.</p>
+            </div>
+            <label>
+              <span>Application email</span>
+              <input type="email" name="email" placeholder="name@example.com" autocomplete="email" required />
+            </label>
+            <label>
+              <span>Create a password</span>
+              <input type="password" name="password" minlength="8" autocomplete="new-password" required />
+            </label>
+            <label>
+              <span>Confirm password</span>
+              <input type="password" name="confirmPassword" minlength="8" autocomplete="new-password" required />
+            </label>
+            <button type="submit" class="btn btn-primary auth-button" id="accountSetupSubmit">Send confirmation email</button>
+            <div class="form-status auth-status" id="accountSetupStatus" aria-live="polite"></div>
+            <button type="button" class="text-button" id="returnToLogin">Return to sign in</button>
           </form>
           <form class="auth-form" id="passwordRecoveryForm" hidden>
             <div class="auth-copy">
@@ -104,8 +130,8 @@
               <span class="brand-sub">LIMITED</span>
             </div>
           </div>
-          <p class="footer-title">CEOs &amp; Entrepreneurs Conversations</p>
-          <p class="footer-tagline">Where Business Leaders Meet, Talk, Learn and Grow.</p>
+          <p class="footer-title">KG CEOs &amp; Entrepreneurs Network</p>
+          <p class="footer-tagline">KG CEC NETWORK - Where Business Leaders Meet, Talk, Learn and Grow.</p>
           <p class="powered-by">Powered by <strong>KG MULTISECTOR LIMITED</strong></p>
         </div>
         <div class="footer-links">

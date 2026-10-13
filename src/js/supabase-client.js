@@ -257,6 +257,54 @@
     };
   }
 
+  async function signUpApprovedApplicant(payload) {
+    if (!client) return { success: false, message: 'Supabase is not configured.' };
+    const { data: sessionData, error: sessionError } = await client.auth.getSession();
+    if (sessionError) return { success: false, message: `Current sign-in status could not be checked: ${sessionError.message}` };
+    if (sessionData.session) {
+      return { success: false, message: 'Sign out of the current account before setting up a new member account.' };
+    }
+    const email = String(payload.email || '').trim().toLowerCase();
+    const password = String(payload.password || '');
+    if (!email || !password) {
+      return { success: false, message: 'Enter your application email and choose a password.' };
+    }
+    if (password.length < 8) {
+      return { success: false, message: 'Use a password with at least 8 characters.' };
+    }
+
+    const emailRedirectTo = new URL('login.html', window.location.href).toString();
+    const { data, error } = await client.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo }
+    });
+    if (error) {
+      const message = /approved membership application|database error saving new user/i.test(error.message)
+        ? 'We could not create the account. Confirm your application is approved, use the same email address, and check whether an account already exists. Contact the administrator if the issue continues.'
+        : `Account setup could not be started: ${error.message}`;
+      return { success: false, message };
+    }
+    if (!data.user) {
+      return { success: false, message: 'Account setup could not be confirmed. Please try again.' };
+    }
+    if (!data.session) {
+      return {
+        success: true,
+        message: 'Your account request was accepted. Check your email and confirm your address before signing in. If you have not been told your application was approved, contact the administrator.'
+      };
+    }
+
+    const profileResult = await getCurrentProfile();
+    if (profileResult.error) return { success: false, message: `Account was created, but member profile could not be loaded: ${profileResult.error}` };
+    if (!profileResult.profile) return { success: false, message: 'Account was created, but the approved member profile was not found. Contact the administrator.' };
+    return {
+      success: true,
+      message: `Welcome, ${profileResult.profile.full_name}. Your member account is ready.`,
+      role: profileResult.profile.role
+    };
+  }
+
   async function requestPasswordReset(email) {
     if (!client) return { success: false, message: 'Supabase is not configured.' };
     const normalizedEmail = String(email || '').trim();
@@ -521,7 +569,7 @@
     const [applicationsResult, countResult] = await Promise.all([
       client
         .from('applications')
-        .select('id, full_name, email, phone, location, company, position, industry, years_in_business, website, linkedin, why_join, contribute, gain, referral, profile_photo, status, created_at')
+        .select('id, full_name, email, phone, location, company, position, industry, years_in_business, website, linkedin, why_join, contribute, gain, referral, profile_photo, auth_user_id, status, created_at')
         .order('created_at', { ascending: false })
         .limit(50),
       client
@@ -1123,7 +1171,13 @@
       .maybeSingle();
     if (error) return { success: false, message: `Application status was not updated: ${error.message}` };
     if (!data) return { success: false, message: 'Application was not found or you do not have permission to update it.' };
-    return { success: true, data, message: 'Application status updated.' };
+    return {
+      success: true,
+      data,
+      message: status === 'approved'
+        ? 'Application approved. Please notify the applicant to set up an account from the login page using this application email.'
+        : 'Application status updated.'
+    };
   }
 
   async function loadSubscriptionPayments() {
@@ -1255,6 +1309,7 @@
     client,
     submitApplication,
     signIn,
+    signUpApprovedApplicant,
     requestPasswordReset,
     updateAccountPassword,
     getCurrentProfile,

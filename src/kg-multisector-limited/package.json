@@ -1,0 +1,23 @@
+{
+  "name": "kg-multisector-limited",
+  "version": "1.0.0",
+  "description": "A web application for KG Multisector Limited to showcase services and allow clients to book them.",
+  "main": "src/js/main.js",
+  "scripts": {
+    "start": "live-server src",
+    "build": "echo 'Build step not defined'",
+    "test": "echo 'No tests defined'"
+  },
+  "keywords": [
+    "KG Multisector Limited",
+    "services",
+    "booking",
+    "web application"
+  ],
+  "author": "KG Multisector Limited",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "live-server": "^1.2.1"
+  }
+}
