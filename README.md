@@ -58,9 +58,21 @@ Database-backed pages use the Supabase project configured in `src/js/supabase-co
 Annual network subscriptions are UGX 50,000 and currently use a manual MTN Mobile Money reference check. Members submit the payer phone number and transaction reference; an administrator must verify the payment before the one-year subscription is marked active. This is not an automatic payment integration or auto-renewal.
 
 ## Membership approval and account setup
-Approving an application does not sign the applicant in or create an account by itself. After approval, the administrator should notify the applicant to open `login.html`, choose **Set up your member account**, and register with the same email used on the approved application. The database trigger creates the member profile from that approved application and rejects account creation for emails without an approved application. Supabase then sends its configured email-confirmation link; the applicant must confirm their email and sign in. Once the member profile is created, the member count includes them.
+Approving an application does not sign the applicant in. After the invitation function is deployed and email delivery configured, approval sends the applicant an email link to set a password. The database trigger creates the member profile only for an approved application; the applicant confirms their email and chooses a password before signing in. The member count includes linked member profiles.
 
-Enable email signup and email confirmation in Supabase Auth, and ensure the deployed `login.html` is an allowed redirect URL. The admin must notify the approved applicant; approval does not automatically send an invitation.
+Enable email signup and email confirmation in Supabase Auth, and ensure the deployed `login.html?account-setup=1` URL is an allowed redirect.
+
+### Automatic approval invitations
+The admin application review sends an account invitation when an application is approved. This uses the `send-member-invitation` Supabase Edge Function, which verifies the caller's admin profile before using the server-side Supabase Auth admin API. Never expose the service-role key in frontend code.
+
+Deploy the function from the repository root after linking the Supabase project with the Supabase CLI:
+
+```powershell
+supabase functions deploy send-member-invitation
+supabase secrets set SITE_URL=https://kgmultisectorlimited.github.io/CEOs-ENTREPRENEURS-NETWORK
+```
+
+Supabase supplies `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` to Edge Functions. In **Authentication → URL Configuration**, allow the deployed `login.html?account-setup=1` redirect. Configure a reliable SMTP sender in **Authentication → SMTP Settings**; Supabase's default email sender is rate-limited and intended for testing. The invite link opens the site password form; after choosing a password, the applicant is taken to the member dashboard. If an invitation fails after approval, the admin can use **Send account invitation** on the approved application.
 
 The site includes Privacy Policy, Terms, and Community Guidelines pages. These operational policy drafts should be reviewed by qualified counsel for the applicable jurisdictions before being treated as complete legal advice.
 

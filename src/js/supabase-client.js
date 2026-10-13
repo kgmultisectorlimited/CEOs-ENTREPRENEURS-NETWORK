@@ -1180,6 +1180,27 @@
     };
   }
 
+  async function sendApprovedApplicantInvitation(applicationId) {
+    if (!client) return { success: false, message: 'Supabase is not configured.' };
+    try {
+      const profile = await requireAdmin();
+      if (!profile) return { success: false, message: 'Administrator access is required to invite applicants.' };
+      const { data, error } = await client.functions.invoke('send-member-invitation', {
+        body: { applicationId }
+      });
+      if (error) {
+        const detail = error.context?.json?.error || error.message;
+        return { success: false, message: `Invitation email could not be sent: ${detail}` };
+      }
+      return {
+        success: true,
+        message: data?.message || 'Account invitation email sent.'
+      };
+    } catch (error) {
+      return { success: false, message: `Invitation email could not be sent: ${error.message}` };
+    }
+  }
+
   async function loadSubscriptionPayments() {
     if (!client) throw new Error('Supabase is not configured.');
     const profileResult = await getCurrentProfile();
@@ -1340,6 +1361,7 @@
     cancelEvent,
     setEventRsvp,
     updateApplicationStatus,
+    sendApprovedApplicantInvitation,
     loadSubscriptionPayments,
     submitSubscriptionPayment,
     loadSubscriptionPaymentReviews,

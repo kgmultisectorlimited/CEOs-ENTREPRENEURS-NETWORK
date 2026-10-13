@@ -448,9 +448,9 @@ document.addEventListener('DOMContentLoaded', function () {
         email.textContent = application.email;
         const accountState = document.createElement('small');
         accountState.textContent = application.auth_user_id
-          ? 'Member account: set up'
+          ? 'Member account: invitation sent or account created'
           : (application.status === 'approved'
-            ? 'Member account: applicant still needs to set it up'
+            ? 'Member account: invitation needed'
             : 'Member account: not created');
         details.append(name, business, email, accountState);
 
@@ -477,13 +477,47 @@ document.addEventListener('DOMContentLoaded', function () {
             const update = await window.KGData.updateApplicationStatus(application.id, status.value);
             if (!update.success) throw new Error(update.message);
             await loadAdminApplications();
-            setStatus(applicationReviewStatus, update.message, 'success');
+            if (status.value === 'approved' && !application.auth_user_id) {
+              const invitation = await window.KGData.sendApprovedApplicantInvitation(application.id);
+              if (!invitation.success) {
+                setStatus(
+                  applicationReviewStatus,
+                  `Application approved, but the invitation could not be sent. Use the invitation button and check Supabase Auth email settings. ${invitation.message}`,
+                  'error'
+                );
+                return;
+              }
+              await loadAdminApplications();
+              setStatus(applicationReviewStatus, invitation.message, 'success');
+            } else {
+              setStatus(applicationReviewStatus, update.message, 'success');
+            }
           } catch (error) {
             setStatus(applicationReviewStatus, error.message, 'error');
             status.value = application.status;
             status.disabled = false;
           }
         });
+        if (application.status === 'approved' && !application.auth_user_id) {
+          const invite = document.createElement('button');
+          invite.type = 'button';
+          invite.className = 'btn btn-secondary small-btn';
+          invite.textContent = 'Send account invitation';
+          invite.addEventListener('click', async () => {
+            invite.disabled = true;
+            setStatus(applicationReviewStatus, `Sending an account invitation to ${application.email}…`);
+            try {
+              const result = await window.KGData.sendApprovedApplicantInvitation(application.id);
+              if (!result.success) throw new Error(result.message);
+              await loadAdminApplications();
+              setStatus(applicationReviewStatus, result.message, 'success');
+            } catch (error) {
+              setStatus(applicationReviewStatus, error.message, 'error');
+              invite.disabled = false;
+            }
+          });
+          details.append(invite);
+        }
             const review = document.createElement('details');
             review.className = 'application-review-details';
             review.open = ['pending', 'review'].includes(application.status);
@@ -2102,6 +2136,7 @@ async function loadMemberDirectory() {
   });
 
   const recoveryRequested = new URLSearchParams(window.location.search).has('password-recovery');
+  const accountSetupRequested = new URLSearchParams(window.location.search).has('account-setup');
   const showPasswordRecovery = () => {
     if (!loginForm || !passwordRecoveryForm) return;
     loginForm.hidden = true;
@@ -2123,16 +2158,26 @@ async function loadMemberDirectory() {
 
   if (passwordRecoveryForm && passwordRecoveryStatus && window.KGData?.client) {
     const revealIfRecoverySession = async () => {
-      if (!recoveryRequested) return;
+      if (!recoveryRequested && !accountSetupRequested) return;
       const { data, error } = await window.KGData.client.auth.getSession();
       if (error) {
-        setStatus(passwordRecoveryStatus, `Password reset session could not be checked: ${error.message}`, 'error');
+        setStatus(passwordRecoveryStatus, `Account setup session could not be checked: ${error.message}`, 'error');
       } else if (data.session) {
         showPasswordRecovery();
+        if (accountSetupRequested) {
+          passwordRecoveryForm.querySelector('h2').textContent = 'Set your member password';
+          passwordRecoveryForm.querySelector('p:not(.section-kicker)').textContent = 'Choose a password to activate your approved member account.';
+        }
       }
     };
     window.KGData.client.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') showPasswordRecovery();
+      if (event === 'PASSWORD_RECOVERY' || (accountSetupRequested && event === 'SIGNED_IN')) {
+        showPasswordRecovery();
+        if (accountSetupRequested) {
+          passwordRecoveryForm.querySelector('h2').textContent = 'Set your member password';
+          passwordRecoveryForm.querySelector('p:not(.section-kicker)').textContent = 'Choose a password to activate your approved member account.';
+        }
+      }
     });
     revealIfRecoverySession();
     passwordRecoveryForm.addEventListener('submit', async (event) => {
@@ -2147,7 +2192,13 @@ async function loadMemberDirectory() {
       try {
         const result = await window.KGData.updateAccountPassword(values.newPassword);
         setStatus(passwordRecoveryStatus, result.message, result.success ? 'success' : 'error');
-        if (result.success) passwordRecoveryForm.reset();
+        if (result.success) {
+          passwordRecoveryForm.reset();
+          if (accountSetupRequested) {
+            setStatus(passwordRecoveryStatus, 'Password saved. Taking you to your member dashboard…', 'success');
+            setTimeout(() => window.location.replace('member-dashboard.html'), 900);
+          }
+        }
       } catch (error) {
         setStatus(passwordRecoveryStatus, `Password could not be updated: ${error.message}`, 'error');
       } finally {
