@@ -1008,6 +1008,7 @@
     if (!profileResult.profile || profileResult.profile.role !== 'admin') {
       throw new Error('Administrator access is required.');
     }
+    return profileResult.profile;
   }
 
   async function loadEvents(includeCancelled = false) {
