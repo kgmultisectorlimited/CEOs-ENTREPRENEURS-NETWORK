@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Events | CEOs & Entrepreneurs Conversations</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body class="events-body" data-auth-role="member">
+    <script>document.documentElement.classList.add('auth-pending');</script>
+    <header class="site-header">
+      <div class="container nav-wrap">
+        <a href="index.html" class="brand" aria-label="KG Multisector Limited home">
+          <img src="assets/kg-logo.png" alt="KG Multisector Limited logo" class="brand-logo" />
+          <div class="brand-copy">
+            <span class="brand-label">KG MULTISECTOR</span>
+            <span class="brand-sub">LIMITED</span>
+          </div>
+        </a>
+
+        <button class="menu-toggle" aria-label="Toggle navigation" aria-expanded="false">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        <nav class="main-nav" aria-label="Main navigation">
+          <a href="index.html">Home</a>
+          <a href="index.html#about">About</a>
+          <a href="index.html#how-it-works">How It Works</a>
+          <a href="conversations.html">Conversations</a>
+          <a href="events.html" class="active">Events</a>
+          <a href="members-directory.html">Members</a>
+          <a href="membership-application.html">Membership</a>
+        </nav>
+
+        <div class="nav-actions">
+          <a href="member-dashboard.html" class="btn btn-ghost">Member Portal</a>
+          <a href="membership-application.html" class="btn btn-primary">Apply Now</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="events-page">
+      <section class="events-hero">
+        <div class="container events-hero-inner">
+          <div>
+            <p class="section-kicker">Events</p>
+            <h1>High-value gatherings built for real connections.</h1>
+          </div>
+          <div class="hero-callout alt">
+            <strong>Next major event</strong>
+            <p id="nextEventSummary">Loading upcoming events…</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="container event-shell">
+        <section class="panel-card-wide event-admin-panel" data-admin-only hidden>
+          <div class="panel-header-row">
+            <div>
+              <p class="section-kicker alt-kicker">Admin tools</p>
+              <h2 id="eventFormHeading">Create an event</h2>
+            </div>
+            <span id="eventAdminStatus" class="form-status" aria-live="polite"></span>
+          </div>
+          <form id="eventAdminForm" class="event-admin-form">
+            <input type="hidden" name="id" />
+            <div class="form-grid">
+              <label>
+                <span>Event title</span>
+                <input name="title" required maxlength="140" />
+              </label>
+              <label>
+                <span>Event type</span>
+                <input name="eventType" required maxlength="80" placeholder="Roundtable, Masterclass…" />
+              </label>
+              <label>
+                <span>Date and time</span>
+                <input name="date" type="datetime-local" required />
+              </label>
+              <label>
+                <span>Venue or meeting link</span>
+                <input name="venue" required maxlength="180" />
+              </label>
+              <label>
+                <span>Capacity (0 = unlimited)</span>
+                <input name="seatsAvailable" type="number" min="0" step="1" value="0" required />
+              </label>
+              <label>
+                <span>Price / entry</span>
+                <input name="price" maxlength="80" placeholder="Free entry, UGX 50,000…" />
+              </label>
+              <label class="full-width">
+                <span>Description</span>
+                <textarea name="description" rows="3" maxlength="1500"></textarea>
+              </label>
+            </div>
+            <div class="form-actions">
+              <button type="reset" class="btn btn-secondary" id="eventFormCancel">Clear form</button>
+              <button type="submit" class="btn btn-primary" id="eventFormSubmit">Create event</button>
+            </div>
+          </form>
+        </section>
+        <p id="eventPageStatus" class="form-status" aria-live="polite">Loading events…</p>
+        <div class="event-layout">
+          <div class="event-listing" id="eventListing" aria-live="polite">
+          </div>
+
+          <aside class="event-sidebar">
+            <div class="profile-card sidebar-box">
+              <h3>Upcoming Highlights</h3>
+              <ul id="upcomingEventHighlights">
+                <li><span>Status</span><strong>Loading…</strong></li>
+              </ul>
+            </div>
+
+            <div class="profile-card sidebar-box">
+              <h3>Event Types</h3>
+              <div class="tag-list">
+                <span>CEO Conversations</span>
+                <span>Hangouts</span>
+                <span>Roundtables</span>
+                <span>Masterclasses</span>
+                <span>Retreats</span>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-grid">
+        <div class="footer-brand">
+          <div class="brand footer-brand-wrap">
+            <img src="assets/kg-logo.png" alt="KG Multisector Limited logo" class="brand-logo" />
+            <div class="brand-copy">
+              <span class="brand-label">KG MULTISECTOR</span>
+              <span class="brand-sub">LIMITED</span>
+            </div>
+          </div>
+          <p class="footer-title">CEOs &amp; Entrepreneurs Conversations</p>
+          <p class="footer-tagline">Where Business Leaders Meet, Talk, Learn and Grow.</p>
+          <p class="powered-by">Powered by <strong>KG MULTISECTOR LIMITED</strong></p>
+        </div>
+        <div class="footer-links">
+          <h3>Explore</h3>
+          <a href="index.html#about">About</a>
+          <a href="conversations.html">Conversations</a>
+          <a href="members-directory.html">Members</a>
+          <a href="membership-application.html">Membership</a>
+        </div>
+        <div class="footer-links">
+          <h3>Resources</h3>
+          <a href="#">Community Guidelines</a>
+          <a href="#">Privacy Policy</a>
+          <a href="#">Terms</a>
+          <a href="#">Contact</a>
+        </div>
+        <div class="footer-links social-links">
+          <h3>Connect</h3>
+          <a href="#">LinkedIn</a>
+          <a href="#">X</a>
+          <a href="#">Instagram</a>
+          <a href="#">Facebook</a>
+        </div>
+      </div>
+      <div class="container footer-bottom">
+        <span>© <span id="year"></span> KG MULTISECTOR LIMITED</span>
+        <span>All rights reserved.</span>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/supabase-auth-guard.js"></script>
+    <script src="js/main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Member Network | CEOs & Entrepreneurs Conversations</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body class="network-body" data-auth-role="member">
+    <script>document.documentElement.classList.add('auth-pending');</script>
+    <header class="site-header">
+      <div class="container nav-wrap">
+        <a href="index.html" class="brand" aria-label="KG Multisector Limited home">
+          <img src="assets/kg-logo.png" alt="KG Multisector Limited logo" class="brand-logo" />
+          <div class="brand-copy">
+            <span class="brand-label">KG MULTISECTOR</span>
+            <span class="brand-sub">LIMITED</span>
+          </div>
+        </a>
+
+        <button class="menu-toggle" aria-label="Toggle navigation" aria-expanded="false">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        <nav class="main-nav" aria-label="Main navigation">
+          <a href="member-dashboard.html">Dashboard</a>
+          <a href="conversations.html">Conversations</a>
+          <a href="events.html">Events</a>
+          <a href="members-directory.html">Members</a>
+          <a href="messages.html">Messages</a>
+          <a href="resources.html">Resources</a>
+          <a href="member-network.html" class="active">Network</a>
+        </nav>
+
+        <div class="nav-actions">
+          <button class="icon-button" aria-label="Notifications">🔔</button>
+          <div class="profile-pill">
+            <span class="avatar-mini" data-profile-initials>KG</span>
+            <span data-profile-name>Member</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="network-page">
+      <section class="network-hero">
+        <div class="container network-hero-inner">
+          <div>
+            <p class="section-kicker">Member network</p>
+            <h1>Build strategic relationships with the right leaders.</h1>
+          </div>
+          <div class="hero-callout">
+            <strong id="networkCount">Member network</strong>
+            <p>Find members and send a connection request.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="container network-shell">
+        <aside class="network-sidebar">
+          <div class="network-filters">
+            <h2>Filters</h2>
+            <div class="filter-list">
+              <button class="filter-pill active" type="button" data-network-filter="all" aria-pressed="true">All members</button>
+              <button class="filter-pill" type="button" data-network-filter="founders" aria-pressed="false">Founders</button>
+              <button class="filter-pill" type="button" data-network-filter="operators" aria-pressed="false">Operators</button>
+              <button class="filter-pill" type="button" data-network-filter="investors" aria-pressed="false">Investors</button>
+              <button class="filter-pill" type="button" data-network-filter="advisors" aria-pressed="false">Advisors</button>
+            </div>
+          </div>
+
+          <div class="network-filters">
+            <h2>Members to explore</h2>
+            <ul class="intro-list" id="networkFeaturedMembers"></ul>
+          </div>
+        </aside>
+
+        <section class="network-main">
+          <p id="networkStatus" class="form-status" aria-live="polite">Loading member network…</p>
+          <div class="network-grid" id="networkGrid">
+            <article class="network-card">
+              <div class="network-top">
+                <div class="member-avatar">PM</div>
+                <span class="verified-tag">Verified</span>
+              </div>
+              <div class="network-body">
+                <h3>Patricia M.</h3>
+                <p class="member-role">Founder & CEO</p>
+                <p class="member-company">Northstar Advisory</p>
+                <ul>
+                  <li>Leadership</li>
+                  <li>Strategy</li>
+                  <li>Growth</li>
+                </ul>
+                <div class="network-footer">
+                  <span>Shared interest</span>
+                  <button class="btn btn-secondary small-btn">Connect</button>
+                </div>
+              </div>
+            </article>
+
+            <article class="network-card">
+              <div class="network-top">
+                <div class="member-avatar alt">JM</div>
+                <span class="cohort-tag">Top match</span>
+              </div>
+              <div class="network-body">
+                <h3>Joseph M.</h3>
+                <p class="member-role">COO</p>
+                <p class="member-company">Granite Ventures</p>
+                <ul>
+                  <li>Operations</li>
+                  <li>People</li>
+                  <li>Systems</li>
+                </ul>
+                <div class="network-footer">
+                  <span>Shared interest</span>
+                  <button class="btn btn-secondary small-btn">Connect</button>
+                </div>
+              </div>
+            </article>
+
+            <article class="network-card">
+              <div class="network-top">
+                <div class="member-avatar warm">DT</div>
+                <span class="verified-tag">Verified</span>
+              </div>
+              <div class="network-body">
+                <h3>David T.</h3>
+                <p class="member-role">Managing Partner</p>
+                <p class="member-company">Bluepeak Capital</p>
+                <ul>
+                  <li>Finance</li>
+                  <li>Capital</li>
+                  <li>Advisory</li>
+                </ul>
+                <div class="network-footer">
+                  <span>Shared interest</span>
+                  <button class="btn btn-secondary small-btn">Connect</button>
+                </div>
+              </div>
+            </article>
+
+            <article class="network-card">
+              <div class="network-top">
+                <div class="member-avatar dark">ME</div>
+                <span class="cohort-tag">New</span>
+              </div>
+              <div class="network-body">
+                <h3>Mary E.</h3>
+                <p class="member-role">People Director</p>
+                <p class="member-company">Apex Group</p>
+                <ul>
+                  <li>People</li>
+                  <li>Culture</li>
+                  <li>Hiring</li>
+                </ul>
+                <div class="network-footer">
+                  <span>Shared interest</span>
+                  <button class="btn btn-secondary small-btn">Connect</button>
+                </div>
+              </div>
+            </article>
+
+            <article class="network-card">
+              <div class="network-top">
+                <div class="member-avatar rose">KB</div>
+                <span class="verified-tag">Verified</span>
+              </div>
+              <div class="network-body">
+                <h3>Kenneth B.</h3>
+                <p class="member-role">Strategy Lead</p>
+                <p class="member-company">Sovereign Growth</p>
+                <ul>
+                  <li>Strategy</li>
+                  <li>Market entry</li>
+                  <li>Execution</li>
+                </ul>
+                <div class="network-footer">
+                  <span>Shared interest</span>
+                  <button class="btn btn-secondary small-btn">Connect</button>
+                </div>
+              </div>
+            </article>
+
+            <article class="network-card">
+              <div class="network-top">
+                <div class="member-avatar blue">AF</div>
+                <span class="cohort-tag">Top match</span>
+              </div>
+              <div class="network-body">
+                <h3>Annette F.</h3>
+                <p class="member-role">Board Advisor</p>
+                <p class="member-company">Harbor Advisory</p>
+                <ul>
+                  <li>Governance</li>
+                  <li>Leadership</li>
+                  <li>Risk</li>
+                </ul>
+                <div class="network-footer">
+                  <span>Shared interest</span>
+                  <button class="btn btn-secondary small-btn">Connect</button>
+                </div>
+              </div>
+            </article>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-grid">
+        <div class="footer-brand">
+          <div class="brand footer-brand-wrap">
+            <img src="assets/kg-logo.png" alt="KG Multisector Limited logo" class="brand-logo" />
+            <div class="brand-copy">
+              <span class="brand-label">KG MULTISECTOR</span>
+              <span class="brand-sub">LIMITED</span>
+            </div>
+          </div>
+          <p class="footer-title">CEOs &amp; Entrepreneurs Conversations</p>
+          <p class="footer-tagline">Where Business Leaders Meet, Talk, Learn and Grow.</p>
+          <p class="powered-by">Powered by <strong>KG MULTISECTOR LIMITED</strong></p>
+        </div>
+        <div class="footer-links">
+          <h3>Explore</h3>
+          <a href="index.html#about">About</a>
+          <a href="conversations.html">Conversations</a>
+          <a href="events.html">Events</a>
+          <a href="members-directory.html">Members</a>
+        </div>
+        <div class="footer-links">
+          <h3>Resources</h3>
+          <a href="resources.html">Resource Library</a>
+          <a href="resources.html">Community Guidelines</a>
+          <a href="resources.html">Privacy Policy</a>
+          <a href="resources.html">Terms</a>
+        </div>
+        <div class="footer-links social-links">
+          <h3>Connect</h3>
+          <a href="#">LinkedIn</a>
+          <a href="#">X</a>
+          <a href="#">Instagram</a>
+          <a href="#">Facebook</a>
+        </div>
+      </div>
+      <div class="container footer-bottom">
+        <span>© <span id="year"></span> KG MULTISECTOR LIMITED</span>
+        <span>All rights reserved.</span>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/supabase-auth-guard.js"></script>
+    <script src="js/main.js"></script>
+  </body>
+</html>

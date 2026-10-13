@@ -1,0 +1,21 @@
+{
+  "name": "kg-multisector-limited",
+  "version": "1.0.0",
+  "description": "A web application for KG MULTISECTOR LIMITED.",
+  "main": "src/js/main.js",
+  "scripts": {
+    "start": "live-server src",
+    "build": "echo 'Build process can be defined here.'"
+  },
+  "keywords": [
+    "kg-multisector",
+    "web",
+    "application"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "live-server": "^1.2.1"
+  }
+}

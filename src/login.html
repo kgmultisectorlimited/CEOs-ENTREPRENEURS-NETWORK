@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Member Login | CEOs & Entrepreneurs Conversations</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body class="auth-body">
+    <header class="site-header">
+      <div class="container nav-wrap">
+        <a href="index.html" class="brand" aria-label="KG Multisector Limited home">
+          <img src="assets/kg-logo.png" alt="KG Multisector Limited logo" class="brand-logo" />
+          <div class="brand-copy">
+            <span class="brand-label">KG MULTISECTOR</span>
+            <span class="brand-sub">LIMITED</span>
+          </div>
+        </a>
+
+        <nav class="main-nav" aria-label="Login navigation">
+          <a href="index.html">Home</a>
+          <a href="conversations.html">Conversations</a>
+          <a href="events.html">Events</a>
+          <a href="members-directory.html">Members</a>
+        </nav>
+
+        <div class="nav-actions">
+          <a href="membership-application.html" class="btn btn-primary">Apply to Join</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="auth-page">
+      <section class="container auth-shell">
+        <div class="auth-panel">
+          <div class="auth-copy">
+            <p class="section-kicker">Welcome back</p>
+            <h1>Member login</h1>
+            <p>
+              Access your private community, conversations, events, and member network.
+            </p>
+          </div>
+
+          <form class="auth-form" id="loginForm">
+            <label>
+              <span>Email</span>
+              <input type="email" name="email" placeholder="name@example.com" required />
+            </label>
+            <label>
+              <span>Password</span>
+              <input type="password" name="password" placeholder="Enter your password" required />
+            </label>
+
+            <div class="auth-options">
+              <label class="remember-box">
+                <input type="checkbox" name="remember" />
+                <span>Remember me</span>
+              </label>
+              <button type="button" class="text-button" id="forgotPasswordButton">Forgot password?</button>
+            </div>
+
+            <button type="submit" class="btn btn-primary auth-button">Sign In</button>
+            <p class="auth-switch">
+              Not a member yet?
+              <a href="membership-application.html">Apply to join</a>
+            </p>
+            <div class="form-status auth-status" id="loginStatus" aria-live="polite"></div>
+          </form>
+          <form class="auth-form" id="passwordRecoveryForm" hidden>
+            <div class="auth-copy">
+              <p class="section-kicker">Account security</p>
+              <h2>Choose a new password</h2>
+              <p>Use at least 8 characters for your new password.</p>
+            </div>
+            <label>
+              <span>New password</span>
+              <input type="password" name="newPassword" minlength="8" autocomplete="new-password" required />
+            </label>
+            <label>
+              <span>Confirm new password</span>
+              <input type="password" name="confirmPassword" minlength="8" autocomplete="new-password" required />
+            </label>
+            <button type="submit" class="btn btn-primary auth-button">Update password</button>
+            <div class="form-status auth-status" id="passwordRecoveryStatus" aria-live="polite"></div>
+            <a href="login.html">Return to sign in</a>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-grid">
+        <div class="footer-brand">
+          <div class="brand footer-brand-wrap">
+            <img src="assets/kg-logo.png" alt="KG Multisector Limited logo" class="brand-logo" />
+            <div class="brand-copy">
+              <span class="brand-label">KG MULTISECTOR</span>
+              <span class="brand-sub">LIMITED</span>
+            </div>
+          </div>
+          <p class="footer-title">CEOs &amp; Entrepreneurs Conversations</p>
+          <p class="footer-tagline">Where Business Leaders Meet, Talk, Learn and Grow.</p>
+          <p class="powered-by">Powered by <strong>KG MULTISECTOR LIMITED</strong></p>
+        </div>
+        <div class="footer-links">
+          <h3>Explore</h3>
+          <a href="index.html#about">About</a>
+          <a href="conversations.html">Conversations</a>
+          <a href="events.html">Events</a>
+          <a href="members-directory.html">Members</a>
+        </div>
+        <div class="footer-links">
+          <h3>Resources</h3>
+          <a href="#">Community Guidelines</a>
+          <a href="#">Privacy Policy</a>
+          <a href="#">Terms</a>
+          <a href="#">Contact</a>
+        </div>
+        <div class="footer-links social-links">
+          <h3>Connect</h3>
+          <a href="#">LinkedIn</a>
+          <a href="#">X</a>
+          <a href="#">Instagram</a>
+          <a href="#">Facebook</a>
+        </div>
+      </div>
+      <div class="container footer-bottom">
+        <span>© <span id="year"></span> KG MULTISECTOR LIMITED</span>
+        <span>All rights reserved.</span>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/main.js"></script>
+  </body>
+</html>

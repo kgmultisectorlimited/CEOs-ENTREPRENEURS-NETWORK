@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Conversations | CEOs & Entrepreneurs Conversations</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body class="conversations-body" data-auth-role="member">
+    <script>document.documentElement.classList.add('auth-pending');</script>
+    <header class="site-header">
+      <div class="container nav-wrap">
+        <a href="index.html" class="brand" aria-label="KG Multisector Limited home">
+          <img src="assets/kg-logo.png" alt="KG Multisector Limited logo" class="brand-logo" />
+          <div class="brand-copy">
+            <span class="brand-label">KG MULTISECTOR</span>
+            <span class="brand-sub">LIMITED</span>
+          </div>
+        </a>
+
+        <button class="menu-toggle" aria-label="Toggle navigation" aria-expanded="false">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        <nav class="main-nav" aria-label="Main navigation">
+          <a href="index.html">Home</a>
+          <a href="index.html#about">About</a>
+          <a href="index.html#how-it-works">How It Works</a>
+          <a href="conversations.html" class="active">Conversations</a>
+          <a href="events.html">Events</a>
+          <a href="members-directory.html">Members</a>
+          <a href="membership-application.html">Membership</a>
+        </nav>
+
+        <div class="nav-actions">
+          <a href="member-dashboard.html" class="btn btn-ghost">Member Portal</a>
+          <a href="membership-application.html" class="btn btn-primary">Apply Now</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="conversations-page">
+      <section class="conversation-hero">
+        <div class="container conversation-hero-inner">
+          <div>
+            <p class="section-kicker">Conversations</p>
+            <h1>Where leaders talk honestly about growth.</h1>
+          </div>
+          <div class="hero-callout">
+            <strong>Curated community sessions</strong>
+            <p>Scheduled sessions are managed by the community team.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="container conversation-shell">
+        <div class="filter-bar conversation-filters">
+          <button class="filter-pill active" type="button" data-conversation-filter="all" aria-pressed="true">All Topics</button>
+          <button class="filter-pill" type="button" data-conversation-filter="Leadership" aria-pressed="false">Leadership</button>
+          <button class="filter-pill" type="button" data-conversation-filter="Finance" aria-pressed="false">Finance</button>
+          <button class="filter-pill" type="button" data-conversation-filter="Strategy" aria-pressed="false">Strategy</button>
+          <button class="filter-pill" type="button" data-conversation-filter="Growth" aria-pressed="false">Growth</button>
+          <button class="filter-pill" type="button" data-conversation-filter="People" aria-pressed="false">People</button>
+        </div>
+
+        <p class="form-status" id="conversationStatus" aria-live="polite">Loading sessions…</p>
+        <div class="conversation-grid" id="conversationGrid"></div>
+        <div class="panel-card-wide" data-admin-only hidden>
+          <p>As an administrator, create and manage curated sessions on the Events page.</p>
+          <a class="btn btn-primary" href="events.html">Manage events</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-grid">
+        <div class="footer-brand">
+          <div class="brand footer-brand-wrap">
+            <img src="assets/kg-logo.png" alt="KG Multisector Limited logo" class="brand-logo" />
+            <div class="brand-copy">
+              <span class="brand-label">KG MULTISECTOR</span>
+              <span class="brand-sub">LIMITED</span>
+            </div>
+          </div>
+          <p class="footer-title">CEOs &amp; Entrepreneurs Conversations</p>
+          <p class="footer-tagline">Where Business Leaders Meet, Talk, Learn and Grow.</p>
+          <p class="powered-by">Powered by <strong>KG MULTISECTOR LIMITED</strong></p>
+        </div>
+        <div class="footer-links">
+          <h3>Explore</h3>
+          <a href="index.html#about">About</a>
+          <a href="index.html#conversations">Conversations</a>
+          <a href="members-directory.html">Members</a>
+          <a href="membership-application.html">Membership</a>
+        </div>
+        <div class="footer-links">
+          <h3>Resources</h3>
+          <a href="#">Community Guidelines</a>
+          <a href="#">Privacy Policy</a>
+          <a href="#">Terms</a>
+          <a href="#">Contact</a>
+        </div>
+        <div class="footer-links social-links">
+          <h3>Connect</h3>
+          <a href="#">LinkedIn</a>
+          <a href="#">X</a>
+          <a href="#">Instagram</a>
+          <a href="#">Facebook</a>
+        </div>
+      </div>
+      <div class="container footer-bottom">
+        <span>© <span id="year"></span> KG MULTISECTOR LIMITED</span>
+        <span>All rights reserved.</span>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/supabase-auth-guard.js"></script>
+    <script src="js/main.js"></script>
+  </body>
+</html>

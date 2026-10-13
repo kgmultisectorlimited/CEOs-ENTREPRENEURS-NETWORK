@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Resources | CEOs & Entrepreneurs Conversations</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body class="resources-body" data-auth-role="member">
+    <script>document.documentElement.classList.add('auth-pending');</script>
+    <header class="site-header">
+      <div class="container nav-wrap">
+        <a href="index.html" class="brand" aria-label="KG Multisector Limited home">
+          <img src="assets/kg-logo.png" alt="KG Multisector Limited logo" class="brand-logo" />
+          <div class="brand-copy">
+            <span class="brand-label">KG MULTISECTOR</span>
+            <span class="brand-sub">LIMITED</span>
+          </div>
+        </a>
+
+        <button class="menu-toggle" aria-label="Toggle navigation" aria-expanded="false">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        <nav class="main-nav" aria-label="Main navigation">
+          <a href="index.html">Home</a>
+          <a href="index.html#about">About</a>
+          <a href="conversations.html">Conversations</a>
+          <a href="events.html">Events</a>
+          <a href="members-directory.html">Members</a>
+          <a href="messages.html">Messages</a>
+          <a href="resources.html" class="active">Resources</a>
+        </nav>
+
+        <div class="nav-actions">
+          <a href="member-dashboard.html" class="btn btn-ghost">Member Portal</a>
+          <a href="membership-application.html" class="btn btn-primary">Apply Now</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="resources-page">
+      <section class="resource-hero">
+        <div class="container resource-hero-inner">
+          <div>
+            <p class="section-kicker">Resources</p>
+            <h1>Practical insights for building enduring businesses.</h1>
+          </div>
+          <div class="hero-callout">
+            <strong>Member library</strong>
+            <p>Actionable guides, frameworks, and peer lessons curated for growth-focused leaders.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="container resource-shell">
+        <section class="panel-card-wide resource-admin-panel" data-admin-only hidden>
+          <div class="panel-header-row">
+            <div>
+              <p class="section-kicker alt-kicker">Admin tools</p>
+              <h2 id="resourceFormHeading">Add a resource</h2>
+            </div>
+            <span id="resourceAdminStatus" class="form-status" aria-live="polite"></span>
+          </div>
+          <form id="resourceAdminForm">
+            <input type="hidden" name="id" />
+            <div class="form-grid">
+              <label><span>Title</span><input name="title" required maxlength="180" /></label>
+              <label><span>Category</span><input name="category" required maxlength="80" placeholder="Leadership, Finance…" /></label>
+              <label class="full-width"><span>Summary</span><textarea name="summary" rows="2" required maxlength="1500"></textarea></label>
+              <label class="full-width"><span>Resource content (optional if you add a secure link)</span><textarea name="content" rows="5" maxlength="20000"></textarea></label>
+              <label class="full-width"><span>HTTPS resource link (optional if you add content)</span><input name="resourceUrl" type="url" placeholder="https://…" /></label>
+              <label class="resource-published-control"><input name="published" type="checkbox" checked /> Publish to members</label>
+            </div>
+            <div class="form-actions">
+              <button type="reset" class="btn btn-secondary">Clear form</button>
+              <button type="submit" class="btn btn-primary" id="resourceFormSubmit">Add resource</button>
+            </div>
+          </form>
+        </section>
+
+        <div class="filter-bar resource-filters" id="resourceFilters">
+          <button class="filter-pill active" type="button" data-resource-filter="all" aria-pressed="true">All</button>
+        </div>
+
+        <p class="form-status" id="resourceStatus" aria-live="polite">Loading resources…</p>
+        <div class="resource-grid" id="resourceGrid"></div>
+        <dialog id="resourceDialog" class="resource-dialog">
+          <form method="dialog"><button class="resource-dialog-close" aria-label="Close">×</button></form>
+          <p class="section-kicker alt-kicker" id="resourceDialogCategory"></p>
+          <h2 id="resourceDialogTitle"></h2>
+          <p id="resourceDialogContent"></p>
+          <a id="resourceDialogLink" class="btn btn-primary" target="_blank" rel="noopener noreferrer" hidden>Open resource</a>
+        </dialog>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-grid">
+        <div class="footer-brand">
+          <div class="brand footer-brand-wrap">
+            <img src="assets/kg-logo.png" alt="KG Multisector Limited logo" class="brand-logo" />
+            <div class="brand-copy">
+              <span class="brand-label">KG MULTISECTOR</span>
+              <span class="brand-sub">LIMITED</span>
+            </div>
+          </div>
+          <p class="footer-title">CEOs &amp; Entrepreneurs Conversations</p>
+          <p class="footer-tagline">Where Business Leaders Meet, Talk, Learn and Grow.</p>
+          <p class="powered-by">Powered by <strong>KG MULTISECTOR LIMITED</strong></p>
+        </div>
+        <div class="footer-links">
+          <h3>Explore</h3>
+          <a href="index.html#about">About</a>
+          <a href="conversations.html">Conversations</a>
+          <a href="events.html">Events</a>
+          <a href="members-directory.html">Members</a>
+        </div>
+        <div class="footer-links">
+          <h3>Resources</h3>
+          <a href="resources.html">Resource Library</a>
+          <a href="resources.html">Community Guidelines</a>
+          <a href="resources.html">Privacy Policy</a>
+          <a href="resources.html">Terms</a>
+        </div>
+        <div class="footer-links social-links">
+          <h3>Connect</h3>
+          <a href="#">LinkedIn</a>
+          <a href="#">X</a>
+          <a href="#">Instagram</a>
+          <a href="#">Facebook</a>
+        </div>
+      </div>
+      <div class="container footer-bottom">
+        <span>© <span id="year"></span> KG MULTISECTOR LIMITED</span>
+        <span>All rights reserved.</span>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/supabase-auth-guard.js"></script>
+    <script src="js/main.js"></script>
+  </body>
+</html>

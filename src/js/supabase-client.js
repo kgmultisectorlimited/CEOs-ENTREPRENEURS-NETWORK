@@ -1,0 +1,980 @@
+(function () {
+  const config = window.KG_SUPABASE_CONFIG || {
+    url: '',
+    anonKey: '',
+    appName: 'kg-multisector-limited'
+  };
+
+  const fallbackSeed = {
+    applications: [
+      {
+        id: 'seed-application-1',
+        fullName: 'Amina Kabera',
+        email: 'amina@kgmultisector.com',
+        phone: '+254700000000',
+        location: 'Nairobi, Kenya',
+        company: 'KG Advisory',
+        position: 'Managing Director',
+        industry: 'Consulting',
+        yearsInBusiness: 9,
+        website: 'https://kgmultisector.com',
+        linkedin: 'https://linkedin.com/in/aminakabera',
+        whyJoin: 'To meet founders focused on long-term value creation.',
+        contribute: 'Leadership strategy and operating systems guidance.',
+        gain: 'High-quality leadership conversations and strategic introductions.',
+        referral: 'Founder referral',
+        status: 'approved'
+      }
+    ],
+    profiles: [
+      {
+        id: 'profile-amina',
+        full_name: 'Amina Kabera',
+        email: 'amina@kgmultisector.com',
+        current_role: 'Managing Director',
+        company: 'KG Advisory',
+        location: 'Nairobi, Kenya',
+        linkedin: 'https://linkedin.com/in/aminakabera',
+        bio: 'Founder-led operations, intentional leadership systems, and practical growth strategies for ambitious businesses.',
+        weekly_digest: true,
+        event_reminders: true,
+        mentions_replies: true,
+        new_forum_activity: false,
+        show_profile: true,
+        allow_dm: true,
+        show_network_suggestions: false,
+        role: 'member',
+        updated_at: new Date().toISOString()
+      }
+    ],
+    forum_posts: [
+      {
+        id: 'seed-forum-1',
+        author: 'Patricia M.',
+        topic: 'Leadership',
+        content: 'How are you thinking about leadership continuity as your company scales?',
+        created_at: new Date().toISOString()
+      }
+    ]
+  };
+
+  const isConfigured = Boolean(
+    config.url &&
+    config.url.includes('supabase.co') &&
+    config.anonKey &&
+    !config.anonKey.includes('YOUR_')
+  );
+
+  const client = isConfigured && window.supabase
+    ? window.supabase.createClient(config.url, config.anonKey)
+    : null;
+
+  const storageKey = 'kg_msa_data';
+
+  function readLocalCache() {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      return raw ? JSON.parse(raw) : fallbackSeed;
+    } catch (error) {
+      return fallbackSeed;
+    }
+  }
+
+  function writeLocalCache(data) {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(data));
+    } catch (error) {
+      // ignore storage errors in restricted browsers
+    }
+  }
+
+  function normalizeApplication(payload) {
+    return {
+      full_name: payload.fullName || payload.full_name || '',
+      email: payload.email || '',
+      phone: payload.phone || '',
+      location: payload.location || '',
+      company: payload.company || '',
+      position: payload.position || '',
+      industry: payload.industry || '',
+      years_in_business: Number(payload.yearsInBusiness || 0),
+      website: payload.website || '',
+      linkedin: payload.linkedin || '',
+      why_join: payload.whyJoin || '',
+      contribute: payload.contribute || '',
+      gain: payload.gain || '',
+      referral: payload.referral || '',
+      profile_photo: null
+    };
+  }
+
+  function normalizeProfile(payload) {
+    return {
+      id: payload.id || 'profile-current',
+      full_name: payload.fullName || payload.full_name || 'Member',
+      email: payload.email || '',
+      current_role: payload.currentRole || payload.current_role || '',
+      company: payload.company || '',
+      location: payload.location || '',
+      linkedin: payload.linkedin || '',
+      bio: payload.bio || '',
+      weekly_digest: payload.weeklyDigest ?? true,
+      event_reminders: payload.eventReminders ?? true,
+      mentions_replies: payload.mentionsReplies ?? true,
+      new_forum_activity: payload.newForumActivity ?? false,
+      show_profile: payload.showProfile ?? true,
+      allow_dm: payload.allowDm ?? true,
+      show_network_suggestions: payload.showNetworkSuggestions ?? false,
+      role: payload.role || 'member',
+      updated_at: new Date().toISOString()
+    };
+  }
+
+  async function submitApplication(payload) {
+    const normalized = normalizeApplication(payload);
+
+    if (!client) {
+      return { success: false, message: 'Supabase is not configured. Application was not submitted.' };
+    }
+
+    const { error } = await client
+      .from('applications')
+      .insert([normalized])
+
+    if (error) {
+      return {
+        success: false,
+        message: `Application could not be submitted: ${error.message}`
+      };
+    }
+
+    return {
+      success: true,
+      source: 'supabase',
+      message: `Thank you, ${normalized.full_name}. Your application has been submitted and is under review.`
+    };
+  }
+
+  async function signIn(payload) {
+    const { email, password } = payload || {};
+    if (!email || !password) {
+      return {
+        success: false,
+        message: 'Email and password are required.'
+      };
+    }
+
+    if (!client) {
+      return {
+        success: false,
+        message: 'Supabase is not configured. Sign-in is unavailable until the project URL and anon key are set.'
+      };
+    }
+
+    const { data, error } = await client.auth.signInWithPassword({ email, password });
+    if (error) {
+      return {
+        success: false,
+        message: error.message || 'Unable to sign in.'
+      };
+    }
+
+    const profileResult = await getCurrentProfile();
+    if (profileResult.error) {
+      await client.auth.signOut();
+      return { success: false, message: `Signed in, but member access could not be verified: ${profileResult.error}` };
+    }
+    if (!profileResult.profile) {
+      await client.auth.signOut();
+      return { success: false, message: 'This account has no member profile. Contact the community administrator.' };
+    }
+
+    return {
+      success: true,
+      source: 'supabase',
+      message: `Welcome back, ${profileResult.profile.full_name}.`,
+      data,
+      profile: profileResult.profile,
+      role: profileResult.profile.role
+    };
+  }
+
+  async function requestPasswordReset(email) {
+    if (!client) return { success: false, message: 'Supabase is not configured.' };
+    const normalizedEmail = String(email || '').trim();
+    if (!normalizedEmail) return { success: false, message: 'Enter your account email first.' };
+    const redirectTo = new URL('login.html?password-recovery=1', window.location.href).toString();
+    const { error } = await client.auth.resetPasswordForEmail(normalizedEmail, { redirectTo });
+    if (error) {
+      return { success: false, message: `Password reset email could not be sent: ${error.message}` };
+    }
+    return {
+      success: true,
+      message: 'If an account exists for that email, a password reset link will arrive shortly.'
+    };
+  }
+
+  async function updateAccountPassword(password) {
+    if (!client) return { success: false, message: 'Supabase is not configured.' };
+    const normalizedPassword = String(password || '');
+    if (normalizedPassword.length < 8) {
+      return { success: false, message: 'Use a password with at least 8 characters.' };
+    }
+    const { data: { user }, error: userError } = await client.auth.getUser();
+    if (userError || !user) {
+      return { success: false, message: 'Your password reset session is missing or expired. Request a new reset link.' };
+    }
+    const { error } = await client.auth.updateUser({ password: normalizedPassword });
+    if (error) {
+      return { success: false, message: `Password could not be updated: ${error.message}` };
+    }
+    return { success: true, message: 'Password updated. You can now sign in with the new password.' };
+  }
+
+  async function syncProfile(payload) {
+    if (!client) {
+      return {
+        success: false,
+        message: 'Supabase is not configured. Profile changes were not saved.'
+      };
+    }
+
+    const { data: { user }, error: userError } = await client.auth.getUser();
+    if (userError || !user) {
+      return { success: false, message: 'Your session has expired. Sign in again to save profile changes.' };
+    }
+
+    const normalized = normalizeProfile({ ...payload, id: user.id, email: user.email });
+    const { data, error } = await client
+      .from('profiles')
+      .update({
+        full_name: normalized.full_name,
+        current_role: normalized.current_role,
+        company: normalized.company,
+        location: normalized.location,
+        linkedin: normalized.linkedin,
+        bio: normalized.bio,
+        weekly_digest: normalized.weekly_digest,
+        event_reminders: normalized.event_reminders,
+        mentions_replies: normalized.mentions_replies,
+        new_forum_activity: normalized.new_forum_activity,
+        show_profile: normalized.show_profile,
+        allow_dm: normalized.allow_dm,
+        show_network_suggestions: normalized.show_network_suggestions,
+        updated_at: new Date().toISOString()
+      })
+      .eq('auth_user_id', user.id)
+      .select();
+
+    if (error) {
+      return {
+        success: false,
+        message: `Profile changes were not saved: ${error.message}`
+      };
+    }
+
+    return {
+      success: true,
+      source: 'supabase',
+      data,
+      message: 'Member settings saved successfully.'
+    };
+  }
+
+  async function createForumPost(payload) {
+    if (!client) {
+      return { success: false, message: 'Supabase is not configured. Your post was not published.' };
+    }
+    const profileResult = await getCurrentProfile();
+    if (!profileResult.profile) {
+      return { success: false, message: profileResult.error || 'Your member profile could not be verified.' };
+    }
+    const post = {
+      user_id: profileResult.profile.auth_user_id,
+      author: profileResult.profile.full_name || 'Member',
+      topic: payload.topic || 'General',
+      content: payload.content || '',
+      created_at: new Date().toISOString()
+    };
+
+    const { data, error } = await client.from('forum_posts').insert([post]).select();
+    if (error) {
+      return {
+        success: false,
+        message: `Forum post was not published: ${error.message}`,
+        post
+      };
+    }
+
+    return {
+      success: true,
+      source: 'supabase',
+      data,
+      message: 'Your discussion is now live.',
+      post: data?.[0] || post
+    };
+  }
+
+  async function loadForumPosts() {
+    if (!client) {
+      throw new Error('Supabase is not configured. Forum posts cannot be loaded.');
+    }
+
+    const { data, error } = await client
+      .from('forum_posts')
+      .select('id, user_id, author, topic, content, created_at')
+      .order('created_at', { ascending: false });
+    if (error) {
+      throw new Error(`Forum posts could not be loaded: ${error.message}`);
+    }
+
+    return data || [];
+  }
+
+  async function reportForumPost(payload) {
+    if (!client) return { success: false, message: 'Supabase is not configured.' };
+    const { data: { user }, error: userError } = await client.auth.getUser();
+    if (userError || !user) return { success: false, message: 'Sign in again before reporting a post.' };
+    const reason = String(payload.reason || '').trim();
+    const details = String(payload.details || '').trim();
+    if (!payload.postId || !reason || reason.length > 120 || details.length > 1000) {
+      return { success: false, message: 'Choose a reason up to 120 characters and keep details under 1,000 characters.' };
+    }
+
+    const { error } = await client.from('forum_reports').insert([{
+      post_id: payload.postId,
+      reporter_id: user.id,
+      reason,
+      details: details || null
+    }]);
+    if (error) {
+      if (error.code === '23505') {
+        return { success: false, message: 'You already have a pending report for this post.' };
+      }
+      return { success: false, message: `Post report could not be submitted: ${error.message}` };
+    }
+    return { success: true, message: 'Thank you. Your report has been sent to the community administrators.' };
+  }
+
+  async function loadForumReports() {
+    if (!client) throw new Error('Supabase is not configured.');
+    await requireAdmin();
+    const { data, error } = await client
+      .from('forum_reports')
+      .select('id, post_id, reporter_id, reason, details, status, created_at, reviewed_at')
+      .order('created_at', { ascending: false });
+    if (error) throw new Error(`Moderation reports could not be loaded: ${error.message}`);
+    const reports = data || [];
+    const postIds = [...new Set(reports.map((report) => report.post_id).filter(Boolean))];
+    if (!postIds.length) return reports.map((report) => ({ ...report, post: null }));
+    const { data: posts, error: postsError } = await client
+      .from('forum_posts')
+      .select('id, author, topic, content')
+      .in('id', postIds);
+    if (postsError) throw new Error(`Reported discussions could not be loaded: ${postsError.message}`);
+    const postsById = new Map((posts || []).map((post) => [post.id, post]));
+    return reports.map((report) => ({
+      ...report,
+      post: report.post_id ? postsById.get(report.post_id) || null : null
+    }));
+  }
+
+  async function updateForumReportStatus(reportId, status) {
+    const allowedStatuses = ['resolved', 'dismissed'];
+    if (!allowedStatuses.includes(status)) {
+      return { success: false, message: 'Choose a valid moderation outcome.' };
+    }
+    if (!client) return { success: false, message: 'Supabase is not configured.' };
+    let profile;
+    try {
+      await requireAdmin();
+      const result = await getCurrentProfile();
+      profile = result.profile;
+      if (!profile) return { success: false, message: 'Administrator profile could not be verified.' };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+
+    const { data, error } = await client
+      .from('forum_reports')
+      .update({
+        status,
+        reviewed_by: profile.auth_user_id,
+        reviewed_at: new Date().toISOString()
+      })
+      .eq('id', reportId)
+      .select('id, status')
+      .maybeSingle();
+    if (error) return { success: false, message: `Moderation report could not be updated: ${error.message}` };
+    if (!data) return { success: false, message: 'Report was not found or could not be updated.' };
+    return { success: true, message: `Report marked ${status}.` };
+  }
+
+  async function loadApplications() {
+    if (!client) throw new Error('Supabase is not configured.');
+    const profileResult = await getCurrentProfile();
+    if (profileResult.error) throw new Error(profileResult.error);
+    if (!profileResult.profile || profileResult.profile.role !== 'admin') {
+      throw new Error('Administrator access is required to view applications.');
+    }
+
+    const [applicationsResult, countResult] = await Promise.all([
+      client
+        .from('applications')
+        .select('id, full_name, email, company, position, industry, status, created_at')
+        .order('created_at', { ascending: false })
+        .limit(6),
+      client
+        .from('applications')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending')
+    ]);
+    if (applicationsResult.error) throw new Error(`Applications could not be loaded: ${applicationsResult.error.message}`);
+    if (countResult.error) throw new Error(`Pending application count could not be loaded: ${countResult.error.message}`);
+    return { applications: applicationsResult.data || [], pendingCount: countResult.count || 0 };
+  }
+
+  async function loadMemberDirectory() {
+    if (!client) throw new Error('Supabase is not configured.');
+    const profileResult = await getCurrentProfile();
+    if (profileResult.error) throw new Error(profileResult.error);
+    if (!profileResult.profile) throw new Error('Sign in to view the member directory.');
+
+    const { data, error } = await client
+      .from('member_directory')
+      .select('id, full_name, current_role, company, location, linkedin, bio, allow_dm')
+      .order('full_name', { ascending: true });
+    if (error) throw new Error(`Member directory could not be loaded: ${error.message}`);
+    return data || [];
+  }
+
+  async function loadDirectMessages() {
+    if (!client) throw new Error('Supabase is not configured.');
+    const profileResult = await getCurrentProfile();
+    if (profileResult.error) throw new Error(profileResult.error);
+    if (!profileResult.profile) throw new Error('Sign in to view your messages.');
+    const { data, error } = await client
+      .from('direct_messages')
+      .select('id, sender_profile_id, recipient_profile_id, content, created_at, read_at')
+      .or(`sender_profile_id.eq.${profileResult.profile.id},recipient_profile_id.eq.${profileResult.profile.id}`)
+      .order('created_at', { ascending: true });
+    if (error) throw new Error(`Messages could not be loaded: ${error.message}`);
+    return { messages: data || [], profile: profileResult.profile };
+  }
+
+  async function sendDirectMessage(recipientProfileId, content) {
+    if (!client) return { success: false, message: 'Supabase is not configured.' };
+    const profileResult = await getCurrentProfile();
+    if (profileResult.error) return { success: false, message: profileResult.error };
+    if (!profileResult.profile) return { success: false, message: 'Sign in again to send a message.' };
+    const normalized = String(content || '').trim();
+    if (!recipientProfileId || recipientProfileId === profileResult.profile.id) {
+      return { success: false, message: 'Choose another member to message.' };
+    }
+    if (!normalized || normalized.length > 5000) {
+      return { success: false, message: 'Messages must contain between 1 and 5,000 characters.' };
+    }
+    const { data, error } = await client
+      .from('direct_messages')
+      .insert([{
+        sender_profile_id: profileResult.profile.id,
+        recipient_profile_id: recipientProfileId,
+        content: normalized
+      }])
+      .select('id, sender_profile_id, recipient_profile_id, content, created_at, read_at')
+      .single();
+    if (error) {
+      return {
+        success: false,
+        message: error.code === '42501'
+          ? 'This member is not accepting direct messages.'
+          : `Message could not be sent: ${error.message}`
+      };
+    }
+    return { success: true, message: 'Message sent.', data };
+  }
+
+  async function markDirectMessagesRead(senderProfileId) {
+    if (!client) return { success: false, message: 'Supabase is not configured.' };
+    const profileResult = await getCurrentProfile();
+    if (profileResult.error) return { success: false, message: profileResult.error };
+    if (!profileResult.profile) return { success: false, message: 'Sign in again to update messages.' };
+    const { error } = await client
+      .from('direct_messages')
+      .update({ read_at: new Date().toISOString() })
+      .eq('recipient_profile_id', profileResult.profile.id)
+      .eq('sender_profile_id', senderProfileId)
+      .is('read_at', null);
+    if (error) return { success: false, message: `Messages could not be marked read: ${error.message}` };
+    return { success: true };
+  }
+
+  async function loadResources(includeDrafts = false) {
+    if (!client) throw new Error('Supabase is not configured.');
+    if (includeDrafts) await requireAdmin();
+    const { data, error } = await client
+      .from('resource_library')
+      .select('id, title, category, summary, content, resource_url, published, created_at, updated_at')
+      .order('created_at', { ascending: false });
+    if (error) throw new Error(`Resources could not be loaded: ${error.message}`);
+    return data || [];
+  }
+
+  async function saveResource(payload) {
+    if (!client) return { success: false, message: 'Supabase is not configured.' };
+    try {
+      await requireAdmin();
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+    const profileResult = await getCurrentProfile();
+    if (profileResult.error) return { success: false, message: profileResult.error };
+    if (!profileResult.profile) return { success: false, message: 'Administrator profile could not be verified.' };
+    const title = String(payload.title || '').trim();
+    const category = String(payload.category || '').trim();
+    const summary = String(payload.summary || '').trim();
+    const content = String(payload.content || '').trim();
+    const resourceUrl = String(payload.resourceUrl || '').trim();
+    if (!title || !category || !summary || (!content && !resourceUrl)) {
+      return { success: false, message: 'Title, category, summary, and either resource content or a link are required.' };
+    }
+    if (title.length > 180 || category.length > 80 || summary.length > 1500 || content.length > 20000) {
+      return { success: false, message: 'A resource field is longer than its allowed limit.' };
+    }
+    if (resourceUrl) {
+      let parsedUrl;
+      try {
+        parsedUrl = new URL(resourceUrl);
+      } catch {
+        return { success: false, message: 'Enter a valid link beginning with https://.' };
+      }
+      if (parsedUrl.protocol !== 'https:') {
+        return { success: false, message: 'Resource links must use https://.' };
+      }
+    }
+    const record = {
+      title,
+      category,
+      summary,
+      content: content || null,
+      resource_url: resourceUrl || null,
+      published: payload.published === true || payload.published === 'on'
+    };
+    const query = payload.id
+      ? client.from('resource_library').update({ ...record, updated_at: new Date().toISOString() }).eq('id', payload.id)
+      : client.from('resource_library').insert([{
+        ...record,
+        created_by: profileResult.profile.auth_user_id
+      }]);
+    const { data, error } = await query.select('id').maybeSingle();
+    if (error) return { success: false, message: `Resource could not be saved: ${error.message}` };
+    if (!data) return { success: false, message: 'Resource was not found or could not be saved.' };
+    return { success: true, message: payload.id ? 'Resource updated.' : 'Resource added.' };
+  }
+
+  async function loadNotifications() {
+    if (!client) throw new Error('Supabase is not configured.');
+    const { data: { user }, error: userError } = await client.auth.getUser();
+    if (userError) throw new Error(`Your session could not be checked: ${userError.message}`);
+    if (!user) throw new Error('Sign in to view notifications.');
+    const { data, error } = await client
+      .from('notifications')
+      .select('id, title, body, unread, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    if (error) throw new Error(`Notifications could not be loaded: ${error.message}`);
+    return data || [];
+  }
+
+  async function markNotificationsRead(notificationIds) {
+    if (!client) return { success: false, message: 'Supabase is not configured.' };
+    const { data: { user }, error: userError } = await client.auth.getUser();
+    if (userError || !user) return { success: false, message: 'Sign in again to update notifications.' };
+    let query = client.from('notifications').update({ unread: false }).eq('user_id', user.id);
+    if (Array.isArray(notificationIds)) {
+      if (!notificationIds.length) return { success: true };
+      query = query.in('id', notificationIds);
+    }
+    const { error } = await query;
+    if (error) return { success: false, message: `Notifications could not be updated: ${error.message}` };
+    return { success: true, message: 'Notifications marked as read.' };
+  }
+
+  async function loadConnectionRequests() {
+    if (!client) throw new Error('Supabase is not configured.');
+    const profileResult = await getCurrentProfile();
+    if (profileResult.error) throw new Error(profileResult.error);
+    if (!profileResult.profile) throw new Error('Sign in to view your connections.');
+    const { data, error } = await client
+      .from('connection_requests')
+      .select('id, requester_profile_id, recipient_profile_id, status, created_at')
+      .or(`requester_profile_id.eq.${profileResult.profile.id},recipient_profile_id.eq.${profileResult.profile.id}`)
+      .order('created_at', { ascending: false });
+    if (error) throw new Error(`Connection requests could not be loaded: ${error.message}`);
+    return { requests: data || [], profile: profileResult.profile };
+  }
+
+  async function sendConnectionRequest(recipientProfileId) {
+    if (!client) return { success: false, message: 'Supabase is not configured.' };
+    const profileResult = await getCurrentProfile();
+    if (profileResult.error) return { success: false, message: profileResult.error };
+    const profile = profileResult.profile;
+    if (!profile) return { success: false, message: 'Sign in again to connect with members.' };
+    if (!recipientProfileId || recipientProfileId === profile.id) {
+      return { success: false, message: 'Choose another member to connect with.' };
+    }
+    const { data: existing, error: lookupError } = await client
+      .from('connection_requests')
+      .select('id, requester_profile_id, status')
+      .or(`and(requester_profile_id.eq.${profile.id},recipient_profile_id.eq.${recipientProfileId}),and(requester_profile_id.eq.${recipientProfileId},recipient_profile_id.eq.${profile.id})`);
+    if (lookupError) return { success: false, message: `Existing connection could not be checked: ${lookupError.message}` };
+    const relationship = existing?.find((request) => request.status === 'requested' || request.status === 'accepted');
+    if (relationship) {
+      return {
+        success: false,
+        message: relationship.status === 'accepted'
+          ? 'You are already connected.'
+          : relationship.requester_profile_id === profile.id
+            ? 'Your connection request is already pending.'
+            : 'This member has already sent you a connection request.'
+      };
+    }
+    const priorOwnRequest = existing?.find((request) => request.requester_profile_id === profile.id);
+    const query = priorOwnRequest
+      ? client.from('connection_requests').update({ status: 'requested' }).eq('id', priorOwnRequest.id)
+      : client.from('connection_requests').insert([{
+        requester_profile_id: profile.id,
+        recipient_profile_id: recipientProfileId
+      }]);
+    const { error } = await query;
+    if (error) {
+      return {
+        success: false,
+        message: error.code === '42501'
+          ? 'This member is not currently available for connection requests.'
+          : `Connection request could not be sent: ${error.message}`
+      };
+    }
+    return { success: true, message: 'Connection request sent.' };
+  }
+
+  async function updateConnectionRequest(requestId, status) {
+    if (!['accepted', 'declined', 'withdrawn'].includes(status)) {
+      return { success: false, message: 'Choose a valid connection request action.' };
+    }
+    if (!client) return { success: false, message: 'Supabase is not configured.' };
+    const { data, error } = await client
+      .from('connection_requests')
+      .update({ status })
+      .eq('id', requestId)
+      .select('id')
+      .maybeSingle();
+    if (error) return { success: false, message: `Connection request could not be updated: ${error.message}` };
+    if (!data) return { success: false, message: 'Connection request was not found or this action is not allowed.' };
+    return { success: true, message: `Connection request ${status}.` };
+  }
+
+  async function loadAdminMemberExport() {
+    if (!client) throw new Error('Supabase is not configured.');
+    const profileResult = await getCurrentProfile();
+    if (profileResult.error) throw new Error(profileResult.error);
+    if (!profileResult.profile || profileResult.profile.role !== 'admin') {
+      throw new Error('Administrator access is required to export member data.');
+    }
+
+    const { data, error } = await client
+      .from('profiles')
+      .select('full_name, email, "current_role", company, location, phone, role, show_profile')
+      .order('full_name', { ascending: true });
+    if (error) throw new Error(`Member report could not be loaded: ${error.message}`);
+    return data || [];
+  }
+
+  async function loadAdminDashboardStats() {
+    if (!client) throw new Error('Supabase is not configured.');
+    await requireAdmin();
+    const now = new Date();
+    const upcomingStart = now.toISOString();
+    const monthlyCounts = [];
+    for (let offset = 5; offset >= 0; offset -= 1) {
+      const monthStart = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() - offset + 1, 1);
+      monthlyCounts.push(
+        client.from('profiles')
+          .select('id', { count: 'exact', head: true })
+          .eq('role', 'member')
+          .gte('created_at', monthStart.toISOString())
+          .lt('created_at', monthEnd.toISOString())
+      );
+    }
+    const [membersResult, pendingResult, eventsResult, postsResult, ...monthResults] = await Promise.all([
+      client.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'member'),
+      client.from('applications').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      client.from('events').select('id', { count: 'exact', head: true }).eq('status', 'published').gte('date', upcomingStart),
+      client.from('forum_posts').select('id', { count: 'exact', head: true }),
+      ...monthlyCounts
+    ]);
+    const resultErrors = [
+      ['member total', membersResult.error],
+      ['pending applications', pendingResult.error],
+      ['upcoming events', eventsResult.error],
+      ['forum discussions', postsResult.error],
+      ...monthResults.map((result, index) => [`member growth month ${index + 1}`, result.error])
+    ].filter(([, error]) => error);
+    if (resultErrors.length) {
+      throw new Error(`Dashboard analytics could not be loaded (${resultErrors.map(([label, error]) => `${label}: ${error.message}`).join('; ')}).`);
+    }
+    return {
+      memberCount: membersResult.count || 0,
+      pendingApplications: pendingResult.count || 0,
+      upcomingEvents: eventsResult.count || 0,
+      forumDiscussions: postsResult.count || 0,
+      monthlyMemberCounts: monthResults.map((result) => result.count || 0)
+    };
+  }
+
+  async function loadMemberDashboardStats() {
+    if (!client) throw new Error('Supabase is not configured.');
+    const profileResult = await getCurrentProfile();
+    if (profileResult.error) throw new Error(profileResult.error);
+    const profile = profileResult.profile;
+    if (!profile) throw new Error('Sign in to view your member dashboard.');
+    const { data: { user }, error: userError } = await client.auth.getUser();
+    if (userError) throw new Error(`Your session could not be checked: ${userError.message}`);
+    if (!user) throw new Error('Sign in again to view dashboard statistics.');
+
+    const [connectionsResult, unreadResult, eventRsvpsResult, upcomingCountResult, upcomingEventsResult] = await Promise.all([
+      client.from('connection_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'accepted')
+        .or(`requester_profile_id.eq.${profile.id},recipient_profile_id.eq.${profile.id}`),
+      client.from('direct_messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('recipient_profile_id', profile.id)
+        .is('read_at', null),
+      client.from('event_rsvps')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id),
+      client.from('events')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'published')
+        .gte('date', new Date().toISOString()),
+      client.from('events')
+        .select('id, title, event_type, description, date, venue')
+        .eq('status', 'published')
+        .gte('date', new Date().toISOString())
+        .order('date', { ascending: true })
+        .limit(3)
+    ]);
+    const errors = [
+      ['connections', connectionsResult.error],
+      ['unread messages', unreadResult.error],
+      ['event RSVPs', eventRsvpsResult.error],
+      ['upcoming sessions count', upcomingCountResult.error],
+      ['upcoming events', upcomingEventsResult.error]
+    ].filter(([, error]) => error);
+    if (errors.length) {
+      throw new Error(`Member dashboard could not be loaded (${errors.map(([name, error]) => `${name}: ${error.message}`).join('; ')}).`);
+    }
+    return {
+      connectionCount: connectionsResult.count || 0,
+      unreadMessages: unreadResult.count || 0,
+      eventRsvps: eventRsvpsResult.count || 0,
+      upcomingCount: upcomingCountResult.count || 0,
+      upcomingEvents: upcomingEventsResult.data || []
+    };
+  }
+
+  async function requireAdmin() {
+    const profileResult = await getCurrentProfile();
+    if (profileResult.error) throw new Error(profileResult.error);
+    if (!profileResult.profile || profileResult.profile.role !== 'admin') {
+      throw new Error('Administrator access is required.');
+    }
+  }
+
+  async function loadEvents(includeCancelled = false) {
+    if (!client) throw new Error('Supabase is not configured.');
+    const profileResult = await getCurrentProfile();
+    if (profileResult.error) throw new Error(profileResult.error);
+    if (!profileResult.profile) throw new Error('Sign in to view events.');
+
+    let query = client.from('events').select('*').order('date', { ascending: true, nullsFirst: false });
+    if (!includeCancelled || profileResult.profile.role !== 'admin') {
+      query = query.eq('status', 'published');
+    }
+    const { data, error } = await query;
+    if (error) throw new Error(`Events could not be loaded: ${error.message}`);
+    const events = data || [];
+    if (!events.length) return { events, rsvpedEventIds: [] };
+
+    const { data: { user }, error: userError } = await client.auth.getUser();
+    if (userError) throw new Error(`Your session could not be checked: ${userError.message}`);
+    if (!user) throw new Error('Sign in to view your event RSVPs.');
+    const { data: rsvps, error: rsvpError } = await client
+      .from('event_rsvps')
+      .select('event_id')
+      .eq('user_id', user.id);
+    if (rsvpError) throw new Error(`Your event registrations could not be loaded: ${rsvpError.message}`);
+    return { events, rsvpedEventIds: (rsvps || []).map((rsvp) => rsvp.event_id) };
+  }
+
+  async function saveEvent(payload) {
+    if (!client) return { success: false, message: 'Supabase is not configured.' };
+    try {
+      await requireAdmin();
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+    const event = {
+      title: String(payload.title || '').trim(),
+      event_type: String(payload.eventType || '').trim() || 'Community event',
+      description: String(payload.description || '').trim(),
+      date: payload.date ? new Date(payload.date).toISOString() : null,
+      venue: String(payload.venue || '').trim(),
+      seats_available: Number(payload.seatsAvailable || 0),
+      price: String(payload.price || '').trim()
+    };
+    if (!event.title || !event.date || !event.venue) {
+      return { success: false, message: 'Event title, date, and venue are required.' };
+    }
+    if (!Number.isInteger(event.seats_available) || event.seats_available < 0) {
+      return { success: false, message: 'Capacity must be zero (unlimited) or a positive whole number.' };
+    }
+
+    if (payload.id && event.seats_available > 0) {
+      const { data: currentEvent, error: currentError } = await client
+        .from('events')
+        .select('rsvp_count')
+        .eq('id', payload.id)
+        .maybeSingle();
+      if (currentError) return { success: false, message: `Event capacity could not be checked: ${currentError.message}` };
+      if (currentEvent && event.seats_available < currentEvent.rsvp_count) {
+        return { success: false, message: `Capacity cannot be lower than the ${currentEvent.rsvp_count} existing RSVPs.` };
+      }
+    }
+
+    const query = payload.id
+      ? client.from('events').update(event).eq('id', payload.id)
+      : client.from('events').insert([{ ...event, status: 'published' }]);
+    const { data, error } = await query.select('*').maybeSingle();
+    if (error) return { success: false, message: `Event could not be saved: ${error.message}` };
+    if (!data) return { success: false, message: 'Event was not found or could not be saved.' };
+    return { success: true, event: data, message: payload.id ? 'Event updated.' : 'Event created.' };
+  }
+
+  async function cancelEvent(eventId) {
+    if (!client) return { success: false, message: 'Supabase is not configured.' };
+    try {
+      await requireAdmin();
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+    const { data, error } = await client
+      .from('events')
+      .update({ status: 'cancelled' })
+      .eq('id', eventId)
+      .select('id')
+      .maybeSingle();
+    if (error) return { success: false, message: `Event could not be cancelled: ${error.message}` };
+    if (!data) return { success: false, message: 'Event was not found or could not be cancelled.' };
+    return { success: true, message: 'Event cancelled.' };
+  }
+
+  async function setEventRsvp(eventId, attending) {
+    if (!client) return { success: false, message: 'Supabase is not configured.' };
+    const { data: { user }, error: userError } = await client.auth.getUser();
+    if (userError || !user) return { success: false, message: 'Sign in again to manage your RSVP.' };
+    const query = attending
+      ? client.from('event_rsvps').insert([{ event_id: eventId, user_id: user.id }])
+      : client.from('event_rsvps').delete().eq('event_id', eventId).eq('user_id', user.id);
+    const { error } = await query;
+    if (error) return { success: false, message: `RSVP could not be ${attending ? 'saved' : 'cancelled'}: ${error.message}` };
+    return { success: true, message: attending ? 'You are registered for this event.' : 'Your RSVP has been cancelled.' };
+  }
+
+  async function updateApplicationStatus(applicationId, status) {
+    const allowedStatuses = ['pending', 'review', 'approved', 'rejected'];
+    if (!allowedStatuses.includes(status)) {
+      return { success: false, message: 'Choose a valid application status.' };
+    }
+    if (!client) return { success: false, message: 'Supabase is not configured.' };
+    const profileResult = await getCurrentProfile();
+    if (profileResult.error) return { success: false, message: profileResult.error };
+    if (!profileResult.profile || profileResult.profile.role !== 'admin') {
+      return { success: false, message: 'Administrator access is required to update applications.' };
+    }
+
+    const { data, error } = await client
+      .from('applications')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', applicationId)
+      .select('id, status')
+      .maybeSingle();
+    if (error) return { success: false, message: `Application status was not updated: ${error.message}` };
+    if (!data) return { success: false, message: 'Application was not found or you do not have permission to update it.' };
+    return { success: true, data, message: 'Application status updated.' };
+  }
+
+  async function getCurrentProfile() {
+    if (!client) return { profile: null, error: 'Supabase is not configured.' };
+    const { data: { user }, error: userError } = await client.auth.getUser();
+    if (userError) return { profile: null, error: userError.message };
+    if (!user) return { profile: null, error: null };
+    const { data, error } = await client
+      .from('profiles')
+      .select('*')
+      .eq('auth_user_id', user.id)
+      .maybeSingle();
+    if (error) return { profile: null, error: error.message };
+    return { profile: data || null, error: null };
+  }
+
+  async function signOut() {
+    if (!client) return { success: false, message: 'Supabase is not configured.' };
+    const { error } = await client.auth.signOut();
+    return error
+      ? { success: false, message: error.message }
+      : { success: true };
+  }
+
+  window.KGData = {
+    config,
+    isConfigured,
+    client,
+    submitApplication,
+    signIn,
+    requestPasswordReset,
+    updateAccountPassword,
+    getCurrentProfile,
+    signOut,
+    syncProfile,
+    createForumPost,
+    loadForumPosts,
+    reportForumPost,
+    loadForumReports,
+    updateForumReportStatus,
+    loadApplications,
+    loadMemberDirectory,
+    loadDirectMessages,
+    sendDirectMessage,
+    markDirectMessagesRead,
+    loadResources,
+    saveResource,
+    loadNotifications,
+    markNotificationsRead,
+    loadConnectionRequests,
+    sendConnectionRequest,
+    updateConnectionRequest,
+    loadAdminMemberExport,
+    loadAdminDashboardStats,
+    loadMemberDashboardStats,
+    loadEvents,
+    saveEvent,
+    cancelEvent,
+    setEventRsvp,
+    updateApplicationStatus,
+    readLocalCache,
+    writeLocalCache
+  };
+})();

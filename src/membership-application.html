@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Membership Application | CEOs & Entrepreneurs Conversations</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body class="application-body">
+    <header class="site-header">
+      <div class="container nav-wrap">
+        <a href="index.html" class="brand" aria-label="KG Multisector Limited home">
+          <img src="assets/kg-logo.png" alt="KG Multisector Limited logo" class="brand-logo" />
+          <div class="brand-copy">
+            <span class="brand-label">KG MULTISECTOR</span>
+            <span class="brand-sub">LIMITED</span>
+          </div>
+        </a>
+
+        <button class="menu-toggle" aria-label="Toggle navigation" aria-expanded="false">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        <nav class="main-nav" aria-label="Main navigation">
+          <a href="index.html">Home</a>
+          <a href="index.html#about">About</a>
+          <a href="index.html#how-it-works">How It Works</a>
+          <a href="index.html#conversations">Conversations</a>
+          <a href="index.html#events">Events</a>
+          <a href="member-dashboard.html">Members</a>
+          <a href="membership-application.html" class="active">Membership</a>
+        </nav>
+
+        <div class="nav-actions">
+          <a href="member-dashboard.html" class="btn btn-ghost">Member Portal</a>
+          <a href="membership-application.html" class="btn btn-primary">Apply Now</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="application-page">
+      <section class="application-hero">
+        <div class="container application-hero-inner">
+          <div>
+            <p class="section-kicker">Membership</p>
+            <h1>Apply to join a trusted circle of business leaders.</h1>
+            <p>
+              We review each application carefully to ensure the community remains intentional,
+              high-value, and mutually beneficial for CEOs, founders, and entrepreneurs.
+            </p>
+          </div>
+          <div class="application-summary">
+            <div class="summary-badge">Founding 25</div>
+            <div class="summary-stat">
+              <strong>17</strong>
+              <span>/25 members joined</span>
+            </div>
+            <div class="progress-line"><span style="width: 68%"></span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="container application-shell">
+        <div class="application-layout">
+          <aside class="application-aside">
+            <div class="aside-card">
+              <h3>What to expect</h3>
+              <ul>
+                <li>Application review by the community team</li>
+                <li>Profile review and verification</li>
+                <li>Email update on your membership status</li>
+                <li>Access to curated conversations and events</li>
+              </ul>
+            </div>
+            <div class="aside-card highlight-card">
+              <p class="mini-label">Community values</p>
+              <p>Respect, confidentiality, collaboration, and integrity.</p>
+            </div>
+          </aside>
+
+          <div class="application-form-wrap">
+            <form class="application-form" id="membershipForm">
+              <div class="form-section">
+                <h2>Personal information</h2>
+                <div class="form-grid">
+                  <label>
+                    <span>Full name</span>
+                    <input type="text" name="fullName" placeholder="Enter your full name" required />
+                  </label>
+                  <label>
+                    <span>Email</span>
+                    <input type="email" name="email" placeholder="name@example.com" required />
+                  </label>
+                  <label>
+                    <span>Phone</span>
+                    <input type="tel" name="phone" placeholder="+256 ..." required />
+                  </label>
+                  <label>
+                    <span>Location</span>
+                    <input type="text" name="location" placeholder="Kampala, Uganda" required />
+                  </label>
+                </div>
+              </div>
+
+              <div class="form-section">
+                <h2>Business profile</h2>
+                <div class="form-grid">
+                  <label>
+                    <span>Company</span>
+                    <input type="text" name="company" placeholder="Your company name" required />
+                  </label>
+                  <label>
+                    <span>Position</span>
+                    <input type="text" name="position" placeholder="CEO / Founder / Managing Director" required />
+                  </label>
+                  <label>
+                    <span>Industry</span>
+                    <input type="text" name="industry" placeholder="Technology, Finance, Manufacturing..." required />
+                  </label>
+                  <label>
+                    <span>Years in business</span>
+                    <input type="number" name="yearsInBusiness" min="0" placeholder="5" required />
+                  </label>
+                  <label class="full-width">
+                    <span>Business website</span>
+                    <input type="url" name="website" placeholder="https://example.com" />
+                  </label>
+                  <label class="full-width">
+                    <span>LinkedIn profile</span>
+                    <input type="url" name="linkedin" placeholder="https://linkedin.com/in/..." />
+                  </label>
+                </div>
+              </div>
+
+              <div class="form-section">
+                <h2>Why do you want to join?</h2>
+                <div class="form-grid">
+                  <label class="full-width">
+                    <span>Why do you want to join?</span>
+                    <textarea name="whyJoin" rows="5" placeholder="Tell us what drew you to this community." required></textarea>
+                  </label>
+                  <label class="full-width">
+                    <span>What can you contribute?</span>
+                    <textarea name="contribute" rows="4" placeholder="Share your expertise, network, or experience that could benefit other members." required></textarea>
+                  </label>
+                  <label class="full-width">
+                    <span>What would you like to gain?</span>
+                    <textarea name="gain" rows="4" placeholder="What do you hope to learn, access or build through the community?" required></textarea>
+                  </label>
+                  <label class="full-width">
+                    <span>Referral / source</span>
+                    <input type="text" name="referral" placeholder="Friend, event, partner, social media..." />
+                  </label>
+                </div>
+              </div>
+
+              <div class="form-section">
+                <h2>Upload profile photo</h2>
+                <label class="file-upload">
+                  <input type="file" name="profilePhoto" accept="image/*" />
+                  <span>Choose a profile image</span>
+                </label>
+              </div>
+
+              <div class="form-actions">
+                <button type="reset" class="btn btn-secondary">Clear</button>
+                <button type="submit" class="btn btn-primary">Submit Application</button>
+              </div>
+
+              <div class="form-status" id="formStatus" aria-live="polite"></div>
+            </form>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-grid">
+        <div class="footer-brand">
+          <div class="brand footer-brand-wrap">
+            <img src="assets/kg-logo.png" alt="KG Multisector Limited logo" class="brand-logo" />
+            <div class="brand-copy">
+              <span class="brand-label">KG MULTISECTOR</span>
+              <span class="brand-sub">LIMITED</span>
+            </div>
+          </div>
+          <p class="footer-title">CEOs &amp; Entrepreneurs Conversations</p>
+          <p class="footer-tagline">Where Business Leaders Meet, Talk, Learn and Grow.</p>
+          <p class="powered-by">Powered by <strong>KG MULTISECTOR LIMITED</strong></p>
+        </div>
+        <div class="footer-links">
+          <h3>Explore</h3>
+          <a href="index.html#about">About</a>
+          <a href="index.html#conversations">Conversations</a>
+          <a href="index.html#events">Events</a>
+          <a href="member-dashboard.html">Members</a>
+        </div>
+        <div class="footer-links">
+          <h3>Resources</h3>
+          <a href="#">Community Guidelines</a>
+          <a href="#">Privacy Policy</a>
+          <a href="#">Terms</a>
+          <a href="index.html#contact">Contact</a>
+        </div>
+        <div class="footer-links social-links">
+          <h3>Connect</h3>
+          <a href="#">LinkedIn</a>
+          <a href="#">X</a>
+          <a href="#">Instagram</a>
+          <a href="#">Facebook</a>
+        </div>
+      </div>
+      <div class="container footer-bottom">
+        <span>© <span id="year"></span> KG MULTISECTOR LIMITED</span>
+        <span>All rights reserved.</span>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/main.js"></script>
+  </body>
+</html>

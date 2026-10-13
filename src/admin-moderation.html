@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Community Moderation | CEOs & Entrepreneurs Conversations</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body class="moderation-body" data-auth-role="admin">
+    <script>document.documentElement.classList.add('auth-pending');</script>
+    <header class="site-header">
+      <div class="container nav-wrap">
+        <a href="index.html" class="brand" aria-label="KG Multisector Limited home">
+          <img src="assets/kg-logo.png" alt="KG Multisector Limited logo" class="brand-logo" />
+          <div class="brand-copy">
+            <span class="brand-label">KG MULTISECTOR</span>
+            <span class="brand-sub">LIMITED</span>
+          </div>
+        </a>
+
+        <button class="menu-toggle" aria-label="Toggle navigation" aria-expanded="false">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        <nav class="main-nav" aria-label="Main navigation">
+          <a href="admin-dashboard.html">Overview</a>
+          <a href="admin-moderation.html" class="active">Moderation</a>
+          <a href="members-directory.html">Members</a>
+          <a href="conversations.html">Conversations</a>
+          <a href="events.html">Events</a>
+          <a href="member-settings.html">Settings</a>
+        </nav>
+
+        <div class="nav-actions">
+          <button class="icon-button" aria-label="Notifications">🔔</button>
+          <div class="profile-pill">
+            <span class="avatar-mini">AD</span>
+            <span>Admin</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="moderation-page">
+      <section class="moderation-hero">
+        <div class="container moderation-hero-inner">
+          <div>
+            <p class="section-kicker">Community moderation</p>
+            <h1>Protect the quality of high-trust conversations.</h1>
+          </div>
+          <div class="hero-callout">
+            <strong>Queue status</strong>
+            <p id="moderationQueueSummary">Loading reports…</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="container moderation-shell">
+        <aside class="moderation-sidebar">
+          <div class="moderation-stat-card highlight">
+            <span class="kicker">Priority queue</span>
+            <strong id="moderationPendingCount">—</strong>
+            <small>Awaiting review</small>
+          </div>
+
+          <div class="moderation-stat-card">
+            <span class="kicker">Flagged posts</span>
+            <strong id="moderationTotalCount">—</strong>
+            <small>Total reports</small>
+          </div>
+
+          <div class="moderation-stat-card">
+            <span class="kicker">Member reports</span>
+            <strong id="moderationResolvedCount">—</strong>
+            <small>Resolved or dismissed</small>
+          </div>
+        </aside>
+
+        <section class="moderation-main">
+          <div class="queue-toolbar">
+            <div class="filter-bar">
+              <button class="filter-pill active" type="button" data-report-filter="all">All</button>
+              <button class="filter-pill" type="button" data-report-filter="pending">Pending</button>
+              <button class="filter-pill" type="button" data-report-filter="resolved">Resolved</button>
+              <button class="filter-pill" type="button" data-report-filter="dismissed">Dismissed</button>
+            </div>
+            <button class="btn btn-primary small-btn" type="button" data-action-export="reports">Export review</button>
+          </div>
+
+          <p class="form-status" id="moderationQueueStatus" aria-live="polite">Loading moderation reports…</p>
+          <div class="moderation-list" id="moderationQueue"></div>
+        </section>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-grid">
+        <div class="footer-brand">
+          <div class="brand footer-brand-wrap">
+            <img src="assets/kg-logo.png" alt="KG Multisector Limited logo" class="brand-logo" />
+            <div class="brand-copy">
+              <span class="brand-label">KG MULTISECTOR</span>
+              <span class="brand-sub">LIMITED</span>
+            </div>
+          </div>
+          <p class="footer-title">CEOs &amp; Entrepreneurs Conversations</p>
+          <p class="footer-tagline">Where Business Leaders Meet, Talk, Learn and Grow.</p>
+          <p class="powered-by">Powered by <strong>KG MULTISECTOR LIMITED</strong></p>
+        </div>
+        <div class="footer-links">
+          <h3>Explore</h3>
+          <a href="index.html#about">About</a>
+          <a href="conversations.html">Conversations</a>
+          <a href="events.html">Events</a>
+          <a href="members-directory.html">Members</a>
+        </div>
+        <div class="footer-links">
+          <h3>Resources</h3>
+          <a href="resources.html">Resource Library</a>
+          <a href="resources.html">Community Guidelines</a>
+          <a href="resources.html">Privacy Policy</a>
+          <a href="resources.html">Terms</a>
+        </div>
+        <div class="footer-links social-links">
+          <h3>Connect</h3>
+          <a href="#">LinkedIn</a>
+          <a href="#">X</a>
+          <a href="#">Instagram</a>
+          <a href="#">Facebook</a>
+        </div>
+      </div>
+      <div class="container footer-bottom">
+        <span>© <span id="year"></span> KG MULTISECTOR LIMITED</span>
+        <span>All rights reserved.</span>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/supabase-auth-guard.js"></script>
+    <script src="js/main.js"></script>
+  </body>
+</html>

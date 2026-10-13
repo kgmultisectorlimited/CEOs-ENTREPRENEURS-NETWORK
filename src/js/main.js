@@ -1,0 +1,1881 @@
+document.addEventListener('DOMContentLoaded', function () {
+  const menuToggle = document.querySelector('.menu-toggle');
+  const header = document.querySelector('.site-header');
+  const yearNode = document.getElementById('year');
+  const form = document.getElementById('membershipForm');
+  const formStatus = document.getElementById('formStatus');
+  const loginForm = document.getElementById('loginForm');
+  const loginStatus = document.getElementById('loginStatus');
+  const passwordRecoveryForm = document.getElementById('passwordRecoveryForm');
+  const passwordRecoveryStatus = document.getElementById('passwordRecoveryStatus');
+  const settingsForm = document.getElementById('settingsForm');
+  const settingsStatus = document.getElementById('settingsStatus');
+  const forumForm = document.getElementById('forumComposeForm');
+  const forumStatus = document.getElementById('forumStatus');
+  const forumFeed = document.querySelector('.forum-feed');
+  const forumPostList = document.getElementById('forumPostList');
+  const forumFeedStatus = document.getElementById('forumFeedStatus');
+  const forumActivitySummary = document.getElementById('forumActivitySummary');
+  const forumTrendingList = document.getElementById('forumTrendingList');
+  const moderationQueue = document.getElementById('moderationQueue');
+  const moderationQueueStatus = document.getElementById('moderationQueueStatus');
+  const moderationQueueSummary = document.getElementById('moderationQueueSummary');
+  const moderationPendingCount = document.getElementById('moderationPendingCount');
+  const moderationTotalCount = document.getElementById('moderationTotalCount');
+  const moderationResolvedCount = document.getElementById('moderationResolvedCount');
+  const chatList = document.getElementById('chatList');
+  const chatThread = document.getElementById('chatThread');
+  const messageComposer = document.getElementById('messageComposer');
+  const messageStatus = document.getElementById('messageStatus');
+  const messageListStatus = document.getElementById('messageListStatus');
+  const newMessageControls = document.getElementById('newMessageControls');
+  const newMessageRecipient = document.getElementById('newMessageRecipient');
+  const resourceGrid = document.getElementById('resourceGrid');
+  const resourceStatus = document.getElementById('resourceStatus');
+  const resourceAdminForm = document.getElementById('resourceAdminForm');
+  const resourceAdminStatus = document.getElementById('resourceAdminStatus');
+  const resourceFormHeading = document.getElementById('resourceFormHeading');
+  const resourceFormSubmit = document.getElementById('resourceFormSubmit');
+  const resourceDialog = document.getElementById('resourceDialog');
+  const notificationList = document.getElementById('notificationList');
+  const notificationStatus = document.getElementById('notificationStatus');
+  let directMessages = [];
+  let messageProfile = null;
+  let messageDirectory = [];
+  let activeMessagePartnerId = null;
+  let resourceItems = [];
+  let activeResourceCategory = 'all';
+  let notificationItems = [];
+  let activeNotificationFilter = 'all';
+  let selectedNotificationId = null;
+  let activeConversationTopic = 'all';
+  let networkMembers = [];
+  let networkRequests = [];
+  let networkProfile = null;
+  let activeNetworkFilter = 'all';
+  const adminApplicationList = document.getElementById('adminApplicationList');
+  const pendingApplicationCount = document.getElementById('pendingApplicationCount');
+  const applicationReviewStatus = document.getElementById('applicationReviewStatus');
+  const memberDirectoryGrid = document.getElementById('memberDirectoryGrid');
+  const memberSearch = document.getElementById('memberSearch');
+  const directoryStatus = document.getElementById('directoryStatus');
+  const adminActionStatus = document.getElementById('adminActionStatus');
+  const eventListing = document.getElementById('eventListing');
+  const eventPageStatus = document.getElementById('eventPageStatus');
+  const eventAdminForm = document.getElementById('eventAdminForm');
+  const eventAdminStatus = document.getElementById('eventAdminStatus');
+  const eventFormHeading = document.getElementById('eventFormHeading');
+  const eventFormSubmit = document.getElementById('eventFormSubmit');
+  const nextEventSummary = document.getElementById('nextEventSummary');
+  const upcomingEventHighlights = document.getElementById('upcomingEventHighlights');
+  const conversationGrid = document.getElementById('conversationGrid');
+  const conversationStatus = document.getElementById('conversationStatus');
+  const networkGrid = document.getElementById('networkGrid');
+  const networkStatus = document.getElementById('networkStatus');
+  const networkFeaturedMembers = document.getElementById('networkFeaturedMembers');
+  const memberUpcomingEvents = document.getElementById('memberUpcomingEvents');
+  const memberRecentNotifications = document.getElementById('memberRecentNotifications');
+  const memberDashboardStatus = document.getElementById('memberDashboardStatus');
+  let forumPosts = [];
+  let activeForumTopic = 'all';
+  let forumReports = [];
+  let activeReportFilter = 'all';
+
+  const setStatus = (element, message, type = 'info') => {
+    if (!element) return;
+    element.className = 'form-status';
+    if (type === 'success') element.classList.add('success');
+    if (type === 'error') element.classList.add('error');
+    element.textContent = message;
+  };
+
+  const readForm = (candidate) => Object.fromEntries(new FormData(candidate).entries());
+
+  async function exportAdminMembers() {
+    if (!window.KGData || typeof window.KGData.loadAdminMemberExport !== 'function') {
+      setStatus(adminActionStatus, 'Member export is unavailable until Supabase is configured.', 'error');
+      return;
+    }
+    try {
+      setStatus(adminActionStatus, 'Preparing member export…');
+      const members = await window.KGData.loadAdminMemberExport();
+      if (!members.length) {
+        setStatus(adminActionStatus, 'There are no member profiles to export.');
+        return;
+      }
+      const columns = [
+        ['full_name', 'Full name'],
+        ['email', 'Email'],
+        ['current_role', 'Role title'],
+        ['company', 'Company'],
+        ['location', 'Location'],
+        ['phone', 'Phone'],
+        ['role', 'Account role'],
+        ['show_profile', 'Directory visible']
+      ];
+      const csvCell = (value) => {
+        let text = value === null || value === undefined ? '' : String(value);
+        if (/^[\s]*[=+\-@]/.test(text)) text = `'${text}`;
+        return `"${text.replace(/"/g, '""')}"`;
+      };
+      const csv = [
+        columns.map(([, label]) => csvCell(label)).join(','),
+        ...members.map((member) => columns.map(([key]) => csvCell(member[key])).join(','))
+      ].join('\r\n');
+      const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `kg-multisector-members-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setStatus(adminActionStatus, `${members.length} member profile${members.length === 1 ? '' : 's'} exported.`, 'success');
+    } catch (error) {
+      setStatus(adminActionStatus, error.message, 'error');
+    }
+  }
+
+  function renderMemberNetwork() {
+    if (!networkGrid || !networkProfile) return;
+    const visibleMembers = networkMembers.filter((member) => {
+      if (member.id === networkProfile.id) return false;
+      const role = (member.current_role || '').toLowerCase();
+      if (activeNetworkFilter === 'founders') return /(founder|owner|co-founder|entrepreneur)/.test(role);
+      if (activeNetworkFilter === 'operators') return /(operator|operations|coo|chief operating|managing director)/.test(role);
+      if (activeNetworkFilter === 'investors') return /(investor|investment|venture|capital)/.test(role);
+      if (activeNetworkFilter === 'advisors') return /(advisor|adviser|board|consultant)/.test(role);
+      return true;
+    });
+    networkGrid.replaceChildren();
+    if (!visibleMembers.length) {
+      const empty = document.createElement('p');
+      empty.className = 'form-status';
+      empty.textContent = 'No visible members match this filter.';
+      networkGrid.append(empty);
+    }
+    visibleMembers.forEach((member, index) => {
+      const card = document.createElement('article');
+      card.className = 'network-card';
+      const top = document.createElement('div');
+      top.className = 'network-top';
+      const avatar = document.createElement('div');
+      avatar.className = `member-avatar ${['', 'alt', 'warm', 'dark', 'rose', 'blue'][index % 6]}`.trim();
+      avatar.textContent = initialsFor(member.full_name);
+      const badge = document.createElement('span');
+      badge.className = 'verified-tag';
+      badge.textContent = 'Member';
+      top.append(avatar, badge);
+      const body = document.createElement('div');
+      body.className = 'network-body';
+      const name = document.createElement('h3');
+      name.textContent = member.full_name || 'Member';
+      const role = document.createElement('p');
+      role.className = 'member-role';
+      role.textContent = member.current_role || 'Community member';
+      const company = document.createElement('p');
+      company.className = 'member-company';
+      company.textContent = member.company || '';
+      const location = document.createElement('p');
+      location.className = 'member-company';
+      location.textContent = member.location || '';
+      const footer = document.createElement('div');
+      footer.className = 'network-footer';
+      const relationship = networkRequests.find((request) =>
+        (request.requester_profile_id === member.id && request.recipient_profile_id === networkProfile.id) ||
+        (request.recipient_profile_id === member.id && request.requester_profile_id === networkProfile.id)
+      );
+      if (relationship?.status === 'accepted') {
+        const connected = document.createElement('span');
+        connected.textContent = 'Connected';
+        footer.append(connected);
+      } else if (relationship?.status === 'requested' && relationship.recipient_profile_id === networkProfile.id) {
+        const received = document.createElement('span');
+        received.textContent = 'Request received';
+        const accept = document.createElement('button');
+        accept.type = 'button';
+        accept.className = 'btn btn-primary small-btn';
+        accept.textContent = 'Accept';
+        accept.addEventListener('click', () => updateNetworkRequest(relationship.id, 'accepted'));
+        const decline = document.createElement('button');
+        decline.type = 'button';
+        decline.className = 'btn btn-secondary small-btn';
+        decline.textContent = 'Decline';
+        decline.addEventListener('click', () => updateNetworkRequest(relationship.id, 'declined'));
+        footer.append(received, accept, decline);
+      } else if (relationship?.status === 'requested') {
+        const sent = document.createElement('span');
+        sent.textContent = 'Request sent';
+        const withdraw = document.createElement('button');
+        withdraw.type = 'button';
+        withdraw.className = 'btn btn-secondary small-btn';
+        withdraw.textContent = 'Withdraw';
+        withdraw.addEventListener('click', () => updateNetworkRequest(relationship.id, 'withdrawn'));
+        footer.append(sent, withdraw);
+      } else {
+        const connect = document.createElement('button');
+        connect.type = 'button';
+        connect.className = 'btn btn-secondary small-btn';
+        connect.textContent = 'Connect';
+        connect.addEventListener('click', async () => {
+          connect.disabled = true;
+          try {
+            const result = await window.KGData.sendConnectionRequest(member.id);
+            if (!result.success) throw new Error(result.message);
+            await loadMemberNetwork();
+            setStatus(networkStatus, result.message, 'success');
+          } catch (error) {
+            setStatus(networkStatus, error.message, 'error');
+            connect.disabled = false;
+          }
+        });
+        footer.append(connect);
+      }
+      if (member.allow_dm) {
+        const message = document.createElement('a');
+        message.className = 'btn btn-primary small-btn';
+        message.href = `messages.html?to=${encodeURIComponent(member.id)}`;
+        message.textContent = 'Message';
+        footer.append(message);
+      }
+      body.append(name, role, company, location, footer);
+      card.append(top, body);
+      networkGrid.append(card);
+    });
+    document.getElementById('networkCount').textContent = `${visibleMembers.length} visible member${visibleMembers.length === 1 ? '' : 's'}`;
+
+    if (networkFeaturedMembers) {
+      networkFeaturedMembers.replaceChildren();
+      visibleMembers.slice(0, 3).forEach((member) => {
+        const item = document.createElement('li');
+        const name = document.createElement('strong');
+        name.textContent = member.full_name || 'Member';
+        const detail = document.createElement('span');
+        detail.textContent = [member.current_role, member.company].filter(Boolean).join(' · ') || 'Community member';
+        item.append(name, detail);
+        networkFeaturedMembers.append(item);
+      });
+    }
+  }
+
+  async function loadMemberNetwork() {
+    if (!networkGrid || !window.KGData) return;
+    setStatus(networkStatus, 'Loading member network…');
+    try {
+      const [members, relationshipData] = await Promise.all([
+        window.KGData.loadMemberDirectory(),
+        window.KGData.loadConnectionRequests()
+      ]);
+      networkMembers = members;
+      networkRequests = relationshipData.requests;
+      networkProfile = relationshipData.profile;
+      renderMemberNetwork();
+      setStatus(networkStatus, 'Member network is up to date.');
+    } catch (error) {
+      networkGrid.replaceChildren();
+      setStatus(networkStatus, error.message, 'error');
+    }
+  }
+
+  async function updateNetworkRequest(requestId, status) {
+    try {
+      const result = await window.KGData.updateConnectionRequest(requestId, status);
+      if (!result.success) throw new Error(result.message);
+      await loadMemberNetwork();
+      setStatus(networkStatus, result.message, 'success');
+    } catch (error) {
+      setStatus(networkStatus, error.message, 'error');
+    }
+  }
+
+  function renderConversationListings(events, rsvpedEventIds) {
+    if (!conversationGrid) return;
+    const upcoming = events.filter((event) => event.status === 'published');
+    const visible = upcoming.filter((event) =>
+      activeConversationTopic === 'all' ||
+      (event.event_type || '').toLowerCase().includes(activeConversationTopic.toLowerCase())
+    );
+    conversationGrid.replaceChildren();
+    if (!visible.length) {
+      const empty = document.createElement('p');
+      empty.className = 'form-status';
+      empty.textContent = activeConversationTopic === 'all'
+        ? 'No upcoming community sessions have been scheduled.'
+        : `No upcoming ${activeConversationTopic} sessions have been scheduled.`;
+      conversationGrid.append(empty);
+      return;
+    }
+    visible.forEach((event, index) => {
+      const card = document.createElement('article');
+      card.className = `conversation-card${index === 0 ? ' featured' : ''}`;
+      const top = document.createElement('div');
+      top.className = 'card-topline';
+      const type = document.createElement('span');
+      type.className = 'topic-tag';
+      type.textContent = event.event_type || 'Community session';
+      const state = document.createElement('span');
+      state.className = 'pill status-pill approved';
+      state.textContent = 'Scheduled';
+      top.append(type, state);
+      const title = document.createElement('h3');
+      title.textContent = event.title;
+      const meta = document.createElement('p');
+      meta.className = 'card-meta';
+      meta.textContent = `${formatEventDate(event.date)} · ${event.venue || 'Venue to be announced'}`;
+      const description = document.createElement('p');
+      description.className = 'card-description';
+      description.textContent = event.description || 'A curated session for community members.';
+      const info = document.createElement('div');
+      info.className = 'card-info-row';
+      const seats = document.createElement('span');
+      seats.textContent = event.seats_available > 0
+        ? `${Math.max(0, event.seats_available - (event.rsvp_count || 0))} seats available`
+        : `${event.rsvp_count || 0} registered · No capacity limit`;
+      const entry = document.createElement('span');
+      entry.textContent = event.price || 'Member session';
+      info.append(seats, entry);
+      const rsvped = rsvpedEventIds.includes(event.id);
+      const full = event.seats_available > 0 && event.rsvp_count >= event.seats_available && !rsvped;
+      const rsvp = document.createElement('button');
+      rsvp.type = 'button';
+      rsvp.className = `btn ${rsvped ? 'btn-secondary' : 'btn-primary'}`;
+      rsvp.textContent = rsvped ? 'Cancel RSVP' : (full ? 'Session full' : 'RSVP');
+      rsvp.disabled = full;
+      rsvp.addEventListener('click', async () => {
+        rsvp.disabled = true;
+        try {
+          const result = await window.KGData.setEventRsvp(event.id, !rsvped);
+          if (!result.success) throw new Error(result.message);
+          await loadConversationListings();
+          setStatus(conversationStatus, result.message, 'success');
+        } catch (error) {
+          setStatus(conversationStatus, error.message, 'error');
+          rsvp.disabled = false;
+        }
+      });
+
+      card.append(top, title, meta, description, info, rsvp);
+      conversationGrid.append(card);
+    });
+  }
+
+  async function loadConversationListings() {
+    if (!conversationGrid || !window.KGData) return;
+    setStatus(conversationStatus, 'Loading sessions…');
+    try {
+      const result = await window.KGData.loadEvents(false);
+      renderConversationListings(result.events || [], result.rsvpedEventIds || []);
+      setStatus(conversationStatus, `${(result.events || []).length} scheduled session${(result.events || []).length === 1 ? '' : 's'}.`);
+    } catch (error) {
+      conversationGrid.replaceChildren();
+      setStatus(conversationStatus, error.message, 'error');
+    }
+  }
+
+  async function loadAdminApplications() {
+    if (!adminApplicationList || !window.KGData) return;
+    try {
+      const result = await window.KGData.loadApplications();
+      pendingApplicationCount.textContent = String(result.pendingCount);
+      adminApplicationList.replaceChildren();
+      if (!result.applications.length) {
+        const empty = document.createElement('li');
+        empty.textContent = 'No applications have been submitted yet.';
+        adminApplicationList.append(empty);
+      }
+      result.applications.forEach((application) => {
+        const item = document.createElement('li');
+        item.className = 'admin-application-row';
+        const details = document.createElement('div');
+        const name = document.createElement('strong');
+        name.textContent = application.full_name;
+        const business = document.createElement('p');
+        business.textContent = [application.position, application.company].filter(Boolean).join(', ') || application.industry || 'Business profile not provided';
+        const email = document.createElement('small');
+        email.textContent = application.email;
+        details.append(name, business, email);
+
+        const status = document.createElement('select');
+        status.className = 'application-status-select';
+        status.setAttribute('aria-label', `Status for ${application.full_name}`);
+        [
+          ['pending', 'Pending'],
+          ['review', 'Under review'],
+          ['approved', 'Approved'],
+          ['rejected', 'Rejected']
+        ].forEach(([value, label]) => {
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = label;
+          option.selected = application.status === value;
+          status.append(option);
+        });
+
+        status.addEventListener('change', async function () {
+          status.disabled = true;
+          setStatus(applicationReviewStatus, 'Saving application status…');
+          try {
+            const update = await window.KGData.updateApplicationStatus(application.id, status.value);
+            if (!update.success) throw new Error(update.message);
+            await loadAdminApplications();
+            setStatus(applicationReviewStatus, update.message, 'success');
+          } catch (error) {
+            setStatus(applicationReviewStatus, error.message, 'error');
+            status.value = application.status;
+            status.disabled = false;
+          }
+        });
+        item.append(details, status);
+        adminApplicationList.append(item);
+      });
+      if (!result.applications.length) setStatus(applicationReviewStatus, 'Application list is up to date.');
+      else setStatus(applicationReviewStatus, '');
+    } catch (error) {
+      adminApplicationList.replaceChildren();
+      const item = document.createElement('li');
+      item.textContent = 'Applications could not be loaded.';
+      adminApplicationList.append(item);
+      pendingApplicationCount.textContent = '—';
+      setStatus(applicationReviewStatus, error.message, 'error');
+    }
+  }
+
+  async function loadAdminDashboardStats() {
+    if (!document.getElementById('adminTotalMembers') || !window.KGData) return;
+    try {
+      const stats = await window.KGData.loadAdminDashboardStats();
+      document.getElementById('adminTotalMembers').textContent = String(stats.memberCount);
+      document.getElementById('adminUpcomingEvents').textContent = String(stats.upcomingEvents);
+      document.getElementById('adminForumDiscussions').textContent = String(stats.forumDiscussions);
+      pendingApplicationCount.textContent = String(stats.pendingApplications);
+      const latestMonthCount = stats.monthlyMemberCounts[stats.monthlyMemberCounts.length - 1] || 0;
+      document.getElementById('adminMemberGrowth').textContent =
+        `${latestMonthCount} new member${latestMonthCount === 1 ? '' : 's'} this month`;
+      const chart = document.querySelector('.chart-bars');
+      if (chart) {
+        chart.replaceChildren();
+        const maximum = Math.max(1, ...stats.monthlyMemberCounts);
+        stats.monthlyMemberCounts.forEach((count, index) => {
+          const bar = document.createElement('span');
+          bar.style.height = `${Math.max(8, Math.round((count / maximum) * 100))}%`;
+          const month = new Date();
+          month.setDate(1);
+          month.setMonth(month.getMonth() - (stats.monthlyMemberCounts.length - index - 1));
+          bar.title = `${new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' }).format(month)}: ${count} members joined`;
+          chart.append(bar);
+        });
+        chart.setAttribute('aria-label', 'Member signups by month for the last six months');
+      }
+    } catch (error) {
+      document.getElementById('adminTotalMembers').textContent = '—';
+      document.getElementById('adminUpcomingEvents').textContent = '—';
+      document.getElementById('adminForumDiscussions').textContent = '—';
+      document.getElementById('adminMemberGrowth').textContent = error.message;
+    }
+  }
+
+  async function loadMemberDashboard() {
+    if (!memberUpcomingEvents || !window.KGData) return;
+    setStatus(memberDashboardStatus, 'Loading your community…');
+    try {
+      const [stats, notifications] = await Promise.all([
+        window.KGData.loadMemberDashboardStats(),
+        window.KGData.loadNotifications()
+      ]);
+      document.getElementById('memberConnectionCount').textContent = String(stats.connectionCount);
+      document.getElementById('memberConversationCount').textContent = String(stats.upcomingCount);
+      document.getElementById('memberEventRsvpCount').textContent = String(stats.eventRsvps);
+      document.getElementById('memberUnreadMessageCount').textContent = String(stats.unreadMessages);
+      memberUpcomingEvents.replaceChildren();
+      if (!stats.upcomingEvents.length) {
+        const empty = document.createElement('p');
+        empty.className = 'form-status';
+        empty.textContent = 'No upcoming sessions are scheduled.';
+        memberUpcomingEvents.append(empty);
+      }
+      stats.upcomingEvents.forEach((event) => {
+        const row = document.createElement('article');
+        row.className = 'conversation-item';
+        const details = document.createElement('div');
+        const category = document.createElement('span');
+        category.className = 'conversation-tag';
+        category.textContent = event.event_type || 'Community';
+        const title = document.createElement('h4');
+        title.textContent = event.title;
+        const description = document.createElement('p');
+        description.textContent = event.description || event.venue || 'Community session details';
+        details.append(category, title, description);
+        const date = document.createElement('div');
+        date.className = 'meta-block';
+        const dateText = document.createElement('strong');
+        dateText.textContent = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(event.date));
+        const timeText = document.createElement('span');
+        timeText.textContent = new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(new Date(event.date));
+        date.append(dateText, timeText);
+        row.append(details, date);
+        memberUpcomingEvents.append(row);
+      });
+      memberRecentNotifications.replaceChildren();
+      const recent = notifications.slice(0, 3);
+      if (!recent.length) {
+        const empty = document.createElement('li');
+        empty.textContent = 'No recent activity.';
+        memberRecentNotifications.append(empty);
+      }
+      recent.forEach((notification, index) => {
+        const item = document.createElement('li');
+        const dot = document.createElement('span');
+        dot.className = `activity-dot${['', 'gold', 'orange'][index] ? ` ${['', 'gold', 'orange'][index]}` : ''}`;
+        const content = document.createElement('div');
+        const title = document.createElement('strong');
+        title.textContent = notification.title;
+        const body = document.createElement('p');
+        body.textContent = notification.body || '';
+        content.append(title, body);
+        const time = document.createElement('time');
+        time.textContent = formatRelativeDate(notification.created_at);
+        item.append(dot, content, time);
+        memberRecentNotifications.append(item);
+      });
+      setStatus(memberDashboardStatus, 'Dashboard refreshed.');
+    } catch (error) {
+      setStatus(memberDashboardStatus, error.message, 'error');
+      memberUpcomingEvents.replaceChildren();
+      memberRecentNotifications.replaceChildren();
+    }
+  }
+
+function formatEventDate(date) {
+  if (!date) return 'Date to be announced';
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return 'Date to be announced';
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  }).format(parsed);
+}
+
+function toDateTimeLocal(date) {
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return '';
+  const offsetDate = new Date(parsed.getTime() - parsed.getTimezoneOffset() * 60000);
+  return offsetDate.toISOString().slice(0, 16);
+}
+
+function resetEventForm() {
+  if (!eventAdminForm) return;
+  eventAdminForm.reset();
+  eventAdminForm.elements.namedItem('id').value = '';
+  eventFormHeading.textContent = 'Create an event';
+  eventFormSubmit.textContent = 'Create event';
+}
+
+async function loadEvents() {
+  if (!eventListing || !window.KGData) return;
+  eventListing.replaceChildren();
+  setStatus(eventPageStatus, 'Loading events…');
+  try {
+    const result = await window.KGData.loadEvents(Boolean(window.KG_IS_ADMIN));
+    const events = result.events || [];
+    const upcoming = events.filter((event) => event.status === 'published');
+    nextEventSummary.textContent = upcoming[0]
+      ? `${upcoming[0].title} · ${formatEventDate(upcoming[0].date)}`
+      : 'No upcoming events have been scheduled.';
+    upcomingEventHighlights.replaceChildren();
+    upcoming.slice(0, 3).forEach((event, index) => {
+      const item = document.createElement('li');
+      const label = document.createElement('span');
+      label.textContent = ['Next event', 'Coming up', 'Also upcoming'][index];
+      const title = document.createElement('strong');
+      title.textContent = event.title;
+      item.append(label, title);
+      upcomingEventHighlights.append(item);
+    });
+    if (!upcoming.length) {
+      const item = document.createElement('li');
+      item.textContent = 'No upcoming events';
+      upcomingEventHighlights.append(item);
+    }
+
+    if (!events.length) {
+      setStatus(eventPageStatus, 'No events are published yet.');
+      return;
+    }
+    setStatus(eventPageStatus, `${upcoming.length} upcoming event${upcoming.length === 1 ? '' : 's'}.`);
+
+    events.forEach((event, index) => {
+      const card = document.createElement('article');
+      card.className = `event-card${index === 0 ? ' featured-event' : ''}${event.status === 'cancelled' ? ' is-cancelled' : ''}`;
+      const image = document.createElement('div');
+      image.className = `event-image image-${['one', 'two', 'three'][index % 3]}`;
+      const content = document.createElement('div');
+      content.className = 'event-content';
+      const topRow = document.createElement('div');
+      topRow.className = 'event-top-row';
+      const type = document.createElement('span');
+      type.className = 'event-type';
+      type.textContent = event.event_type || 'Community event';
+      const eventStatus = document.createElement('span');
+      eventStatus.className = `event-status${event.status === 'cancelled' ? ' cancelled' : ''}`;
+      eventStatus.textContent = event.status === 'cancelled' ? 'Cancelled' : 'Open';
+      topRow.append(type, eventStatus);
+      const title = document.createElement('h3');
+      title.textContent = event.title;
+      const date = document.createElement('p');
+      date.className = 'event-date';
+      date.textContent = `${formatEventDate(event.date)} · ${event.venue || 'Venue to be announced'}`;
+      const description = document.createElement('p');
+      description.textContent = event.description || 'Join fellow business leaders for a curated community event.';
+      const meta = document.createElement('div');
+      meta.className = 'event-meta';
+      const capacity = document.createElement('span');
+      capacity.textContent = event.seats_available > 0
+        ? `Capacity: ${event.seats_available}`
+        : 'Capacity: Unlimited';
+      const remaining = document.createElement('span');
+      remaining.textContent = event.seats_available > 0
+        ? `${Math.max(0, event.seats_available - (event.rsvp_count || 0))} seats left`
+        : `${event.rsvp_count || 0} registered`;
+      if (event.price) remaining.textContent = `${remaining.textContent} · ${event.price}`;
+      meta.append(capacity, remaining);
+      content.append(topRow, title, date, description, meta);
+
+      const actions = document.createElement('div');
+      actions.className = 'event-actions';
+      if (event.status === 'published') {
+        const rsvped = result.rsvpedEventIds.includes(event.id);
+        const full = event.seats_available > 0 && event.rsvp_count >= event.seats_available && !rsvped;
+        const rsvp = document.createElement('button');
+        rsvp.type = 'button';
+        rsvp.className = `btn ${rsvped ? 'btn-secondary' : 'btn-primary'}`;
+        rsvp.textContent = rsvped ? 'Cancel RSVP' : (full ? 'Event full' : 'RSVP');
+        rsvp.disabled = full;
+        rsvp.addEventListener('click', async () => {
+          rsvp.disabled = true;
+          setStatus(eventPageStatus, rsvped ? 'Cancelling your RSVP…' : 'Saving your RSVP…');
+          try {
+            const action = await window.KGData.setEventRsvp(event.id, !rsvped);
+            if (!action.success) throw new Error(action.message);
+            await loadEvents();
+            setStatus(eventPageStatus, action.message, 'success');
+          } catch (error) {
+            setStatus(eventPageStatus, error.message, 'error');
+            rsvp.disabled = false;
+          }
+        });
+        actions.append(rsvp);
+      }
+      if (window.KG_IS_ADMIN) {
+        const edit = document.createElement('button');
+        edit.type = 'button';
+        edit.className = 'btn btn-secondary';
+        edit.textContent = 'Edit';
+        edit.addEventListener('click', () => {
+          eventAdminForm.elements.namedItem('id').value = event.id;
+          eventAdminForm.elements.namedItem('title').value = event.title || '';
+          eventAdminForm.elements.namedItem('eventType').value = event.event_type || '';
+          eventAdminForm.elements.namedItem('date').value = toDateTimeLocal(event.date);
+          eventAdminForm.elements.namedItem('venue').value = event.venue || '';
+          eventAdminForm.elements.namedItem('seatsAvailable').value = String(event.seats_available || 0);
+          eventAdminForm.elements.namedItem('price').value = event.price || '';
+          eventAdminForm.elements.namedItem('description').value = event.description || '';
+          eventFormHeading.textContent = 'Edit event';
+          eventFormSubmit.textContent = 'Save event';
+          eventAdminForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+        actions.append(edit);
+        if (event.status === 'published') {
+          const cancel = document.createElement('button');
+          cancel.type = 'button';
+          cancel.className = 'btn btn-secondary';
+          cancel.textContent = 'Cancel event';
+          cancel.addEventListener('click', async () => {
+            if (!window.confirm(`Cancel "${event.title}"?`)) return;
+            cancel.disabled = true;
+            try {
+              const action = await window.KGData.cancelEvent(event.id);
+              if (!action.success) throw new Error(action.message);
+              await loadEvents();
+              setStatus(eventPageStatus, action.message, 'success');
+            } catch (error) {
+              setStatus(eventPageStatus, error.message, 'error');
+              cancel.disabled = false;
+            }
+          });
+          actions.append(cancel);
+        }
+      }
+      content.append(actions);
+      card.append(image, content);
+      eventListing.append(card);
+    });
+  } catch (error) {
+    eventListing.replaceChildren();
+    setStatus(eventPageStatus, error.message, 'error');
+  }
+}
+
+function formatRelativeDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Date unavailable';
+  const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+  if (seconds < 60) return 'Just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date);
+}
+
+function renderForumPosts() {
+  if (!forumPostList) return;
+  forumPostList.replaceChildren();
+  const visiblePosts = forumPosts.filter((post) =>
+    activeForumTopic === 'all' || post.topic === activeForumTopic
+  );
+  if (!visiblePosts.length) {
+    const empty = document.createElement('p');
+    empty.className = 'form-status';
+    empty.textContent = activeForumTopic === 'all'
+      ? 'No discussions have been posted yet. Start the first one.'
+      : `No ${activeForumTopic} discussions yet.`;
+    forumPostList.append(empty);
+    return;
+  }
+
+  visiblePosts.forEach((post, index) => {
+    const article = document.createElement('article');
+    article.className = 'forum-post';
+    const header = document.createElement('div');
+    header.className = 'post-header';
+    const author = document.createElement('div');
+    author.className = 'post-author';
+    const avatar = document.createElement('div');
+    avatar.className = `mini-avatar ${['alt', 'warm', ''][index % 3]}`.trim();
+    const authorName = String(post.author || 'Member').trim();
+    avatar.textContent = authorName.split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() || '').join('');
+    const authorDetails = document.createElement('div');
+    const name = document.createElement('strong');
+    name.textContent = authorName;
+    const meta = document.createElement('span');
+    meta.textContent = `${post.topic || 'General'} · ${formatRelativeDate(post.created_at)}`;
+    authorDetails.append(name, meta);
+    author.append(avatar, authorDetails);
+    const topic = document.createElement('span');
+    topic.className = 'status-pill approved';
+    topic.textContent = post.topic || 'General';
+    header.append(author, topic);
+    const title = document.createElement('h3');
+    title.textContent = post.topic || 'Community discussion';
+    const body = document.createElement('p');
+    body.textContent = post.content;
+    const actions = document.createElement('div');
+    actions.className = 'post-actions';
+    if (post.user_id !== window.KG_CURRENT_PROFILE?.auth_user_id) {
+      const report = document.createElement('button');
+      report.type = 'button';
+      report.className = 'text-button';
+      report.textContent = 'Report';
+      report.addEventListener('click', async () => {
+        const reason = window.prompt('Briefly describe why you are reporting this discussion:');
+        if (reason === null) return;
+        if (!reason.trim()) {
+          setStatus(forumFeedStatus, 'Enter a reason before submitting the report.', 'error');
+          return;
+        }
+        report.disabled = true;
+        try {
+          const result = await window.KGData.reportForumPost({ postId: post.id, reason: reason.trim() });
+          if (!result.success) throw new Error(result.message);
+          setStatus(forumFeedStatus, result.message, 'success');
+        } catch (error) {
+          setStatus(forumFeedStatus, error.message, 'error');
+        } finally {
+          report.disabled = false;
+        }
+      });
+      actions.append(report);
+    }
+    article.append(header, title, body, actions);
+    forumPostList.append(article);
+  });
+}
+
+async function loadCommunityForum() {
+  if (!forumPostList || !window.KGData) return;
+  setStatus(forumFeedStatus, 'Loading discussions…');
+  try {
+    forumPosts = await window.KGData.loadForumPosts();
+    renderForumPosts();
+    setStatus(forumFeedStatus, `${forumPosts.length} discussion${forumPosts.length === 1 ? '' : 's'}.`);
+    if (forumActivitySummary) {
+      forumActivitySummary.textContent = `${forumPosts.length} discussion${forumPosts.length === 1 ? '' : 's'} shared by members.`;
+    }
+    if (forumTrendingList) {
+      forumTrendingList.replaceChildren();
+      const topicCounts = new Map();
+      forumPosts.forEach((post) => topicCounts.set(post.topic || 'General', (topicCounts.get(post.topic || 'General') || 0) + 1));
+      const topTopics = [...topicCounts.entries()].sort((left, right) => right[1] - left[1]).slice(0, 3);
+      if (!topTopics.length) {
+        const item = document.createElement('li');
+        item.textContent = 'No topics yet';
+        forumTrendingList.append(item);
+      }
+      topTopics.forEach(([topicName, count]) => {
+        const item = document.createElement('li');
+        const label = document.createElement('span');
+        label.textContent = topicName;
+        const total = document.createElement('em');
+        total.textContent = `${count} post${count === 1 ? '' : 's'}`;
+        item.append(label, total);
+        forumTrendingList.append(item);
+      });
+    }
+  } catch (error) {
+    forumPosts = [];
+    renderForumPosts();
+    setStatus(forumFeedStatus, error.message, 'error');
+    if (forumActivitySummary) forumActivitySummary.textContent = 'Community activity could not be loaded.';
+  }
+}
+
+function renderModerationQueue() {
+  if (!moderationQueue) return;
+  moderationQueue.replaceChildren();
+  const visibleReports = forumReports.filter((report) =>
+    activeReportFilter === 'all' || report.status === activeReportFilter
+  );
+  if (!visibleReports.length) {
+    const empty = document.createElement('p');
+    empty.className = 'form-status';
+    empty.textContent = activeReportFilter === 'all'
+      ? 'There are no community reports to review.'
+      : `There are no ${activeReportFilter} reports.`;
+    moderationQueue.append(empty);
+    return;
+  }
+
+  visibleReports.forEach((report) => {
+    const item = document.createElement('article');
+    item.className = 'moderation-item';
+    const header = document.createElement('div');
+    header.className = 'moderation-head';
+    const identity = document.createElement('div');
+    identity.className = 'post-author';
+    const avatar = document.createElement('div');
+    avatar.className = 'mini-avatar alt';
+    avatar.textContent = 'R';
+    const details = document.createElement('div');
+    const name = document.createElement('strong');
+    name.textContent = 'Member report';
+    const submitted = document.createElement('span');
+    submitted.textContent = `Forum post · ${formatRelativeDate(report.created_at)}`;
+    details.append(name, submitted);
+    identity.append(avatar, details);
+    const status = document.createElement('span');
+    status.className = `status-pill ${report.status === 'pending' ? 'review' : 'approved'}`;
+    status.textContent = report.status;
+    header.append(identity, status);
+    const title = document.createElement('h3');
+    title.textContent = report.reason;
+    const message = document.createElement('p');
+    message.textContent = report.details || 'No additional details were provided.';
+    item.append(header, title, message);
+    if (report.post) {
+      const postContent = document.createElement('blockquote');
+      postContent.textContent = `${report.post.author || 'Member'} · ${report.post.topic || 'General'}: ${report.post.content}`;
+      item.append(postContent);
+    } else {
+      const unavailable = document.createElement('p');
+      unavailable.textContent = 'The reported discussion is no longer available.';
+      item.append(unavailable);
+    }
+    if (report.status === 'pending') {
+      const actions = document.createElement('div');
+      actions.className = 'moderation-actions';
+      [['resolved', 'Mark resolved'], ['dismissed', 'Dismiss']].forEach(([nextStatus, label]) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `btn ${nextStatus === 'resolved' ? 'btn-primary' : 'btn-secondary'} small-btn`;
+        button.textContent = label;
+        button.addEventListener('click', async () => {
+          button.disabled = true;
+          try {
+            const result = await window.KGData.updateForumReportStatus(report.id, nextStatus);
+            if (!result.success) throw new Error(result.message);
+            await loadModerationQueue();
+            setStatus(moderationQueueStatus, result.message, 'success');
+          } catch (error) {
+            setStatus(moderationQueueStatus, error.message, 'error');
+            button.disabled = false;
+          }
+        });
+        actions.append(button);
+      });
+      item.append(actions);
+    }
+    moderationQueue.append(item);
+  });
+}
+
+async function loadModerationQueue() {
+  if (!moderationQueue || !window.KGData) return;
+  setStatus(moderationQueueStatus, 'Loading moderation reports…');
+  try {
+    forumReports = await window.KGData.loadForumReports();
+    const pending = forumReports.filter((report) => report.status === 'pending').length;
+    const completed = forumReports.length - pending;
+    moderationPendingCount.textContent = String(pending);
+    moderationTotalCount.textContent = String(forumReports.length);
+    moderationResolvedCount.textContent = String(completed);
+    moderationQueueSummary.textContent = `${pending} report${pending === 1 ? '' : 's'} awaiting review`;
+    renderModerationQueue();
+    setStatus(moderationQueueStatus, `${forumReports.length} report${forumReports.length === 1 ? '' : 's'} loaded.`);
+  } catch (error) {
+    forumReports = [];
+    renderModerationQueue();
+    setStatus(moderationQueueStatus, error.message, 'error');
+    moderationQueueSummary.textContent = 'Reports could not be loaded.';
+    moderationPendingCount.textContent = '—';
+    moderationTotalCount.textContent = '—';
+    moderationResolvedCount.textContent = '—';
+  }
+}
+
+function initialsFor(name) {
+  return String(name || 'Member')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || '')
+    .join('');
+}
+
+function renderMessages() {
+  if (!chatList || !chatThread || !messageProfile) return;
+  const memberById = new Map(messageDirectory.map((member) => [member.id, member]));
+  const conversations = new Map();
+  directMessages.forEach((message) => {
+    const partnerId = message.sender_profile_id === messageProfile.id
+      ? message.recipient_profile_id
+      : message.sender_profile_id;
+    const current = conversations.get(partnerId);
+    if (!current || new Date(message.created_at) > new Date(current.created_at)) {
+      conversations.set(partnerId, message);
+    }
+  });
+  if (activeMessagePartnerId && !conversations.has(activeMessagePartnerId)) {
+    conversations.set(activeMessagePartnerId, null);
+  }
+  const search = (document.getElementById('messageSearch')?.value || '').trim().toLowerCase();
+  const sorted = [...conversations.entries()]
+    .filter(([partnerId]) => {
+      const partner = memberById.get(partnerId);
+      return partner && (partner.full_name || '').toLowerCase().includes(search);
+    })
+    .sort((left, right) => {
+      const leftDate = left[1] ? new Date(left[1].created_at).getTime() : 0;
+      const rightDate = right[1] ? new Date(right[1].created_at).getTime() : 0;
+      return rightDate - leftDate;
+    });
+
+  chatList.replaceChildren();
+  if (!sorted.length) {
+    const empty = document.createElement('p');
+    empty.className = 'form-status';
+    empty.textContent = search ? 'No conversations match that search.' : 'No messages yet. Start a conversation with a member.';
+    chatList.append(empty);
+  }
+  sorted.forEach(([partnerId, latest], index) => {
+    const partner = memberById.get(partnerId);
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = `chat-item${partnerId === activeMessagePartnerId ? ' active' : ''}`;
+    item.setAttribute('aria-pressed', String(partnerId === activeMessagePartnerId));
+    const avatar = document.createElement('span');
+    avatar.className = `mini-avatar ${['', 'alt', 'warm'][index % 3]}`.trim();
+    avatar.textContent = initialsFor(partner.full_name);
+    const copy = document.createElement('span');
+    copy.className = 'chat-item-copy';
+    const topline = document.createElement('span');
+    topline.className = 'chat-topline';
+    const name = document.createElement('strong');
+    name.textContent = partner.full_name || 'Member';
+    const time = document.createElement('span');
+    time.textContent = latest ? formatRelativeDate(latest.created_at) : 'New';
+    topline.append(name, time);
+    const preview = document.createElement('span');
+    preview.textContent = latest?.content || 'Start a conversation';
+    copy.append(topline, preview);
+    item.append(avatar, copy);
+    item.addEventListener('click', () => openMessageConversation(partnerId));
+    chatList.append(item);
+  });
+
+  const partner = memberById.get(activeMessagePartnerId);
+  const nameNode = document.getElementById('activeChatName');
+  const initialsNode = document.getElementById('activeChatInitials');
+  const profileLink = document.getElementById('activeChatProfile');
+  const metaNode = document.getElementById('activeChatMeta');
+  const sendButton = document.getElementById('sendMessageButton');
+  if (!partner) {
+    nameNode.textContent = 'Select a conversation';
+    initialsNode.textContent = initialsFor(messageProfile.full_name);
+    metaNode.textContent = 'Your member messages are private.';
+    profileLink.href = 'members-directory.html';
+    chatThread.replaceChildren();
+    const prompt = document.createElement('p');
+    prompt.textContent = 'Select a member to view your conversation.';
+    chatThread.append(prompt);
+    sendButton.disabled = true;
+    return;
+  }
+  nameNode.textContent = partner.full_name || 'Member';
+  initialsNode.textContent = initialsFor(partner.full_name);
+  metaNode.textContent = partner.allow_dm ? 'Member messages are private.' : 'This member is not accepting new messages.';
+  profileLink.href = 'members-directory.html';
+  sendButton.disabled = !partner.allow_dm;
+  const threadMessages = directMessages.filter((message) =>
+    (message.sender_profile_id === messageProfile.id && message.recipient_profile_id === activeMessagePartnerId) ||
+    (message.recipient_profile_id === messageProfile.id && message.sender_profile_id === activeMessagePartnerId)
+  );
+  chatThread.replaceChildren();
+  if (!threadMessages.length) {
+    const prompt = document.createElement('p');
+    prompt.textContent = `You can start a private conversation with ${partner.full_name}.`;
+    chatThread.append(prompt);
+  }
+  threadMessages.forEach((message) => {
+    const bubble = document.createElement('article');
+    bubble.className = `message ${message.sender_profile_id === messageProfile.id ? 'sent' : 'received'}`;
+    const body = document.createElement('p');
+    body.textContent = message.content;
+    const time = document.createElement('time');
+    time.dateTime = message.created_at;
+    time.textContent = new Intl.DateTimeFormat(undefined, { dateStyle: 'short', timeStyle: 'short' }).format(new Date(message.created_at));
+    bubble.append(body, time);
+    chatThread.append(bubble);
+  });
+  chatThread.scrollTop = chatThread.scrollHeight;
+}
+
+async function openMessageConversation(partnerId) {
+  if (!partnerId) return;
+  activeMessagePartnerId = partnerId;
+  const result = await window.KGData.markDirectMessagesRead(partnerId);
+  if (!result.success) setStatus(messageStatus, result.message, 'error');
+  else setStatus(messageStatus, '');
+  renderMessages();
+}
+
+async function loadMessages() {
+  if (!chatList || !window.KGData) return;
+  setStatus(messageListStatus, 'Loading messages…');
+  try {
+    const [messageResult, members] = await Promise.all([
+      window.KGData.loadDirectMessages(),
+      window.KGData.loadMemberDirectory()
+    ]);
+    directMessages = messageResult.messages;
+    messageProfile = messageResult.profile;
+    messageDirectory = members;
+    const recipientSelect = newMessageRecipient;
+    if (recipientSelect) {
+      const availableRecipients = members.filter((member) => member.allow_dm && member.id !== messageProfile.id);
+      recipientSelect.replaceChildren();
+      const prompt = document.createElement('option');
+      prompt.value = '';
+      prompt.textContent = availableRecipients.length
+        ? 'Choose a member who accepts messages'
+        : 'No other members are accepting messages yet';
+      recipientSelect.append(prompt);
+      availableRecipients.forEach((member) => {
+        const option = document.createElement('option');
+        option.value = member.id;
+        option.textContent = `${member.full_name}${member.company ? ` · ${member.company}` : ''}`;
+        recipientSelect.append(option);
+      });
+      const startMessageButton = document.getElementById('startMessageButton');
+      if (startMessageButton) startMessageButton.disabled = !availableRecipients.length;
+      setStatus(
+        document.getElementById('newMessageAvailability'),
+        availableRecipients.length
+          ? ''
+          : 'A second member must join and allow direct messages before you can start a conversation.'
+      );
+    }
+    renderMessages();
+    const unread = directMessages.filter((message) =>
+      message.recipient_profile_id === messageProfile.id && !message.read_at
+    ).length;
+    setStatus(messageListStatus, `${directMessages.length} message${directMessages.length === 1 ? '' : 's'} · ${unread} unread.`);
+    const requestedRecipient = new URLSearchParams(window.location.search).get('to');
+    const initialRecipient = messageDirectory.find((member) => member.id === requestedRecipient && member.allow_dm);
+    if (initialRecipient) await openMessageConversation(initialRecipient.id);
+  } catch (error) {
+    directMessages = [];
+    messageDirectory = [];
+    renderMessages();
+    setStatus(messageListStatus, error.message, 'error');
+  }
+}
+
+function resetResourceForm() {
+  if (!resourceAdminForm) return;
+  resourceAdminForm.reset();
+  resourceAdminForm.elements.namedItem('id').value = '';
+  resourceFormHeading.textContent = 'Add a resource';
+  resourceFormSubmit.textContent = 'Add resource';
+}
+
+function renderResources() {
+  if (!resourceGrid) return;
+  const visibleItems = resourceItems.filter((resource) =>
+    activeResourceCategory === 'all' || resource.category === activeResourceCategory
+  );
+  resourceGrid.replaceChildren();
+  if (!visibleItems.length) {
+    const empty = document.createElement('p');
+    empty.className = 'form-status';
+    empty.textContent = activeResourceCategory === 'all'
+      ? 'No resources have been published yet.'
+      : `No resources in ${activeResourceCategory} yet.`;
+    resourceGrid.append(empty);
+    return;
+  }
+  const previews = ['preview-gold', 'preview-blue', 'preview-amber', 'preview-slate', 'preview-peach', 'preview-rose'];
+  visibleItems.forEach((resource, index) => {
+    const card = document.createElement('article');
+    card.className = `resource-card${index === 0 ? ' featured' : ''}`;
+    const top = document.createElement('div');
+    top.className = 'resource-card-top';
+    const category = document.createElement('span');
+    category.className = 'topic-tag';
+    category.textContent = resource.category;
+    const state = document.createElement('span');
+    state.className = 'resource-read';
+    state.textContent = resource.published ? 'Member resource' : 'Draft';
+    top.append(category, state);
+    const preview = document.createElement('div');
+    preview.className = `resource-preview ${previews[index % previews.length]}`;
+    const previewLabel = document.createElement('span');
+    previewLabel.textContent = resource.resource_url ? 'Linked resource' : 'Member guide';
+    preview.append(previewLabel);
+    const title = document.createElement('h3');
+    title.textContent = resource.title;
+    const summary = document.createElement('p');
+    summary.textContent = resource.summary;
+    const meta = document.createElement('div');
+    meta.className = 'resource-meta';
+    const date = document.createElement('span');
+    date.textContent = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(resource.updated_at || resource.created_at));
+    const open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'text-button';
+    open.textContent = resource.resource_url ? 'Open link' : 'Read guide';
+    open.addEventListener('click', () => {
+      if (resource.resource_url) {
+        window.open(resource.resource_url, '_blank', 'noopener,noreferrer');
+        if (resource.content) showResourceDialog(resource);
+      } else {
+        showResourceDialog(resource);
+      }
+    });
+    meta.append(date, open);
+    card.append(top, preview, title, summary, meta);
+    if (window.KG_IS_ADMIN) {
+      const adminActions = document.createElement('div');
+      adminActions.className = 'resource-admin-actions';
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'btn btn-secondary small-btn';
+      edit.textContent = 'Edit';
+      edit.addEventListener('click', () => {
+        resourceAdminForm.elements.namedItem('id').value = resource.id;
+        resourceAdminForm.elements.namedItem('title').value = resource.title;
+        resourceAdminForm.elements.namedItem('category').value = resource.category;
+        resourceAdminForm.elements.namedItem('summary').value = resource.summary;
+        resourceAdminForm.elements.namedItem('content').value = resource.content || '';
+        resourceAdminForm.elements.namedItem('resourceUrl').value = resource.resource_url || '';
+        resourceAdminForm.elements.namedItem('published').checked = resource.published;
+        resourceFormHeading.textContent = 'Edit resource';
+        resourceFormSubmit.textContent = 'Save changes';
+        resourceAdminForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+      adminActions.append(edit);
+      card.append(adminActions);
+    }
+    resourceGrid.append(card);
+  });
+}
+
+function showResourceDialog(resource) {
+  if (!resourceDialog) return;
+  document.getElementById('resourceDialogCategory').textContent = resource.category;
+  document.getElementById('resourceDialogTitle').textContent = resource.title;
+  document.getElementById('resourceDialogContent').textContent = resource.content || resource.summary;
+  const link = document.getElementById('resourceDialogLink');
+  link.hidden = !resource.resource_url;
+  if (resource.resource_url) link.href = resource.resource_url;
+  resourceDialog.showModal();
+}
+
+async function loadResourceLibrary() {
+  if (!resourceGrid || !window.KGData) return;
+  setStatus(resourceStatus, 'Loading resources…');
+  try {
+    resourceItems = await window.KGData.loadResources(Boolean(window.KG_IS_ADMIN));
+    const categories = [...new Set(resourceItems.map((item) => item.category))].sort();
+    const filters = document.getElementById('resourceFilters');
+    filters.replaceChildren();
+    [['all', 'All'], ...categories.map((category) => [category, category])].forEach(([value, label]) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `filter-pill${value === activeResourceCategory ? ' active' : ''}`;
+      button.dataset.resourceFilter = value;
+      button.setAttribute('aria-pressed', String(value === activeResourceCategory));
+      button.textContent = label;
+      button.addEventListener('click', () => {
+        activeResourceCategory = value;
+        filters.querySelectorAll('[data-resource-filter]').forEach((filter) => {
+          const selected = filter === button;
+          filter.classList.toggle('active', selected);
+          filter.setAttribute('aria-pressed', String(selected));
+        });
+        renderResources();
+      });
+      filters.append(button);
+    });
+    renderResources();
+    setStatus(resourceStatus, `${resourceItems.length} resource${resourceItems.length === 1 ? '' : 's'}${window.KG_IS_ADMIN ? ' including drafts' : ''}.`);
+  } catch (error) {
+    resourceItems = [];
+    renderResources();
+    setStatus(resourceStatus, error.message, 'error');
+  }
+}
+
+async function loadNotificationInbox() {
+  if (!notificationList || !window.KGData) return;
+  setStatus(notificationStatus, 'Loading notifications…');
+  try {
+    notificationItems = await window.KGData.loadNotifications();
+    const unread = notificationItems.filter((item) => item.unread).length;
+    document.getElementById('markAllNotificationsRead').disabled = unread === 0;
+    document.getElementById('notificationUnreadCount').textContent = `${unread} unread`;
+    renderNotificationInbox();
+    setStatus(notificationStatus, `${notificationItems.length} notification${notificationItems.length === 1 ? '' : 's'}.`);
+  } catch (error) {
+    notificationItems = [];
+    document.getElementById('markAllNotificationsRead').disabled = true;
+    renderNotificationInbox();
+    document.getElementById('notificationUnreadCount').textContent = 'Unavailable';
+    setStatus(notificationStatus, error.message, 'error');
+  }
+}
+
+function renderNotificationInbox() {
+  if (!notificationList) return;
+  const visible = notificationItems.filter((item) =>
+    activeNotificationFilter === 'all' || item.unread
+  );
+  notificationList.replaceChildren();
+  if (!visible.length) {
+    const empty = document.createElement('p');
+    empty.className = 'form-status';
+    empty.textContent = activeNotificationFilter === 'unread'
+      ? 'You are all caught up.'
+      : 'No notifications yet.';
+    notificationList.append(empty);
+    return;
+  }
+  visible.forEach((item) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `notify-item${selectedNotificationId === item.id ? ' active' : ''}`;
+    const dot = document.createElement('span');
+    dot.className = `notify-dot${item.unread ? '' : ' muted'}`;
+    const copy = document.createElement('span');
+    copy.className = 'notify-copy';
+    const topline = document.createElement('span');
+    topline.className = 'notify-topline';
+    const title = document.createElement('strong');
+    title.textContent = item.title;
+    const date = document.createElement('span');
+    date.textContent = formatRelativeDate(item.created_at);
+    topline.append(title, date);
+    const body = document.createElement('span');
+    body.textContent = item.body || '';
+    copy.append(topline, body);
+    button.append(dot, copy);
+    button.addEventListener('click', async () => {
+      selectedNotificationId = item.id;
+      if (item.unread) {
+        const result = await window.KGData.markNotificationsRead([item.id]);
+        if (!result.success) {
+          setStatus(notificationStatus, result.message, 'error');
+          return;
+        }
+        item.unread = false;
+        document.getElementById('notificationUnreadCount').textContent =
+          `${notificationItems.filter((entry) => entry.unread).length} unread`;
+        document.getElementById('markAllNotificationsRead').disabled =
+          !notificationItems.some((entry) => entry.unread);
+      }
+      document.getElementById('notificationDetailType').textContent = 'Notification';
+      document.getElementById('notificationDetailTitle').textContent = item.title;
+      document.getElementById('notificationDetailBody').textContent = item.body || 'No additional details.';
+      const status = document.getElementById('notificationDetailStatus');
+      status.textContent = item.unread ? 'Unread' : 'Read';
+      status.className = `status-pill ${item.unread ? 'review' : 'approved'}`;
+      renderNotificationInbox();
+    });
+    notificationList.append(button);
+  });
+  if (selectedNotificationId) {
+    const current = notificationItems.find((item) => item.id === selectedNotificationId);
+    if (current) {
+      document.getElementById('notificationDetailTitle').textContent = current.title;
+      document.getElementById('notificationDetailBody').textContent = current.body || 'No additional details.';
+      document.getElementById('notificationDetailStatus').textContent = current.unread ? 'Unread' : 'Read';
+    }
+  }
+}
+
+async function exportModerationReports() {
+  if (!moderationQueue || !window.KGData) return;
+  try {
+    const reports = await window.KGData.loadForumReports();
+    if (!reports.length) {
+      setStatus(moderationQueueStatus, 'There are no moderation reports to export.');
+      return;
+    }
+    const columns = [
+      ['created_at', 'Submitted at'],
+      ['status', 'Status'],
+      ['reason', 'Reason'],
+      ['details', 'Details'],
+      ['post_id', 'Forum post ID']
+    ];
+    const csvCell = (value) => {
+      let text = value === null || value === undefined ? '' : String(value);
+      if (/^[\s]*[=+\-@]/.test(text)) text = `'${text}`;
+      return `"${text.replace(/"/g, '""')}"`;
+    };
+    const csv = [
+      columns.map(([, label]) => csvCell(label)).join(','),
+      ...reports.map((report) => columns.map(([key]) => csvCell(report[key])).join(','))
+    ].join('\r\n');
+    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `kg-multisector-moderation-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    setStatus(moderationQueueStatus, `${reports.length} moderation report${reports.length === 1 ? '' : 's'} exported.`, 'success');
+  } catch (error) {
+    setStatus(moderationQueueStatus, error.message, 'error');
+  }
+}
+
+async function loadMemberDirectory() {
+    if (!memberDirectoryGrid || !window.KGData) return;
+    memberDirectoryGrid.replaceChildren();
+    setStatus(directoryStatus, 'Loading member directory…');
+    try {
+      const members = await window.KGData.loadMemberDirectory();
+      memberDirectoryGrid.replaceChildren();
+      if (!members.length) {
+        setStatus(directoryStatus, 'No members have chosen to appear in the directory yet.');
+        return;
+      }
+
+      const filters = document.querySelectorAll('[data-directory-filter]');
+      let activeFilter = 'all';
+      const renderMembers = () => {
+        const query = (memberSearch?.value || '').trim().toLowerCase();
+        const visibleMembers = members.filter((member) => {
+          const role = (member.current_role || '').toLowerCase();
+          const categoryMatches = activeFilter === 'all' ||
+            (activeFilter === 'founders' && /(founder|owner|co-founder)/.test(role)) ||
+            (activeFilter === 'ceos' && /(ceo|chief executive|managing director)/.test(role)) ||
+            (activeFilter === 'investors' && /(investor|investment|venture|capital)/.test(role)) ||
+            (activeFilter === 'professionals' && !/(founder|owner|co-founder|ceo|chief executive|managing director|investor|investment|venture|capital)/.test(role));
+          const searchable = [member.full_name, member.current_role, member.company, member.location, member.bio]
+            .filter(Boolean).join(' ').toLowerCase();
+          return categoryMatches && searchable.includes(query);
+        });
+
+        memberDirectoryGrid.replaceChildren();
+        if (!visibleMembers.length) {
+          setStatus(directoryStatus, 'No directory members match those filters.');
+          return;
+        }
+        setStatus(directoryStatus, `${visibleMembers.length} member${visibleMembers.length === 1 ? '' : 's'} shown.`);
+
+        visibleMembers.forEach((member, index) => {
+          const card = document.createElement('article');
+          card.className = 'member-card';
+          const top = document.createElement('div');
+          top.className = 'member-top';
+          const avatar = document.createElement('div');
+          avatar.className = `member-avatar${index % 2 ? ' alt' : ''}`;
+          avatar.textContent = (member.full_name || 'Member')
+            .trim()
+            .split(/\s+/)
+            .slice(0, 2)
+            .map((part) => part[0].toUpperCase())
+            .join('');
+          const badges = document.createElement('div');
+          badges.className = 'member-badges';
+          const verified = document.createElement('span');
+          verified.className = 'verified-tag';
+          verified.textContent = 'Member';
+          badges.append(verified);
+          top.append(avatar, badges);
+
+          const body = document.createElement('div');
+          body.className = 'member-body';
+          const name = document.createElement('h3');
+          name.textContent = member.full_name || 'Member';
+          const role = document.createElement('p');
+          role.className = 'member-role';
+          role.textContent = member.current_role || 'Community member';
+          const company = document.createElement('p');
+          company.className = 'member-company';
+          company.textContent = member.company || '';
+          const facts = document.createElement('ul');
+          [member.location].filter(Boolean).forEach((value) => {
+            const fact = document.createElement('li');
+            fact.textContent = value;
+            facts.append(fact);
+          });
+          const bio = document.createElement('p');
+          bio.className = 'bio';
+          bio.textContent = member.bio || 'This member has not added a biography yet.';
+          const actions = document.createElement('div');
+          actions.className = 'member-actions';
+          if (member.linkedin) {
+            const link = document.createElement('a');
+            link.className = 'btn btn-primary';
+            link.href = member.linkedin.startsWith('http') ? member.linkedin : `https://${member.linkedin}`;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = 'View LinkedIn';
+            actions.append(link);
+          }
+          body.append(name, role, company, facts, bio, actions);
+          card.append(top, body);
+          memberDirectoryGrid.append(card);
+        });
+      };
+
+      filters.forEach((button) => {
+        button.addEventListener('click', () => {
+          activeFilter = button.dataset.directoryFilter || 'all';
+          filters.forEach((item) => {
+            const selected = item === button;
+            item.classList.toggle('active', selected);
+            item.setAttribute('aria-pressed', String(selected));
+          });
+          renderMembers();
+        });
+      });
+      memberSearch?.addEventListener('input', renderMembers);
+      renderMembers();
+    } catch (error) {
+      memberDirectoryGrid.replaceChildren();
+      setStatus(directoryStatus, error.message, 'error');
+    }
+  }
+
+  if (yearNode) {
+    yearNode.textContent = new Date().getFullYear();
+  }
+  document.addEventListener('kg:auth-ready', () => {
+    loadAdminApplications();
+    loadMemberDirectory();
+    loadEvents();
+    loadConversationListings();
+    loadCommunityForum();
+    loadModerationQueue();
+    loadMessages();
+    loadResourceLibrary();
+    loadNotificationInbox();
+    loadAdminDashboardStats();
+    loadMemberNetwork();
+    loadMemberDashboard();
+  });
+
+  document.querySelectorAll('[data-forum-topic]').forEach((item) => {
+    const activate = () => {
+      activeForumTopic = item.dataset.forumTopic || 'all';
+      document.querySelectorAll('[data-forum-topic]').forEach((topic) => {
+        const selected = topic === item;
+        topic.classList.toggle('active', selected);
+        topic.setAttribute('aria-pressed', String(selected));
+      });
+      renderForumPosts();
+    };
+    item.addEventListener('click', activate);
+    item.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        activate();
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-report-filter]').forEach((button) => {
+    button.addEventListener('click', () => {
+      activeReportFilter = button.dataset.reportFilter || 'all';
+      document.querySelectorAll('[data-report-filter]').forEach((filter) => {
+        const selected = filter === button;
+        filter.classList.toggle('active', selected);
+        filter.setAttribute('aria-pressed', String(selected));
+      });
+      renderModerationQueue();
+    });
+  });
+
+  document.querySelectorAll('[data-conversation-filter]').forEach((button) => {
+    button.addEventListener('click', () => {
+      activeConversationTopic = button.dataset.conversationFilter || 'all';
+      document.querySelectorAll('[data-conversation-filter]').forEach((filter) => {
+        const selected = filter === button;
+        filter.classList.toggle('active', selected);
+        filter.setAttribute('aria-pressed', String(selected));
+      });
+      loadConversationListings();
+    });
+  });
+
+  document.querySelectorAll('[data-network-filter]').forEach((button) => {
+    button.addEventListener('click', () => {
+      activeNetworkFilter = button.dataset.networkFilter || 'all';
+      document.querySelectorAll('[data-network-filter]').forEach((filter) => {
+        const selected = filter === button;
+        filter.classList.toggle('active', selected);
+        filter.setAttribute('aria-pressed', String(selected));
+      });
+      renderMemberNetwork();
+    });
+  });
+
+  document.querySelectorAll('[data-notification-filter]').forEach((button) => {
+    button.addEventListener('click', () => {
+      activeNotificationFilter = button.dataset.notificationFilter || 'all';
+      document.querySelectorAll('[data-notification-filter]').forEach((filter) => {
+        const selected = filter === button;
+        filter.classList.toggle('active', selected);
+        filter.setAttribute('aria-pressed', String(selected));
+      });
+      renderNotificationInbox();
+    });
+  });
+
+  document.getElementById('markAllNotificationsRead')?.addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    try {
+      const result = await window.KGData.markNotificationsRead();
+      if (!result.success) throw new Error(result.message);
+      await loadNotificationInbox();
+      setStatus(notificationStatus, result.message, 'success');
+    } catch (error) {
+      setStatus(notificationStatus, error.message, 'error');
+    } finally {
+      button.disabled = !notificationItems.some((item) => item.unread);
+    }
+  });
+
+  document.getElementById('messageSearch')?.addEventListener('input', renderMessages);
+  document.getElementById('newMessageButton')?.addEventListener('click', () => {
+    newMessageControls.hidden = !newMessageControls.hidden;
+    if (!newMessageControls.hidden) newMessageRecipient.focus();
+  });
+  document.getElementById('startMessageButton')?.addEventListener('click', () => {
+    const recipientId = newMessageRecipient.value;
+    if (!recipientId) {
+      setStatus(document.getElementById('newMessageStatus'), 'Choose a member first.', 'error');
+      return;
+    }
+    newMessageControls.hidden = true;
+    newMessageRecipient.value = '';
+    setStatus(document.getElementById('newMessageStatus'), '');
+    openMessageConversation(recipientId);
+  });
+
+  if (messageComposer) {
+    messageComposer.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const messageInput = messageComposer.elements.namedItem('message');
+      if (!activeMessagePartnerId) {
+        setStatus(messageStatus, 'Choose a conversation or start one before sending.', 'error');
+        return;
+      }
+      const sendButton = document.getElementById('sendMessageButton');
+      sendButton.disabled = true;
+      try {
+        const result = await window.KGData.sendDirectMessage(activeMessagePartnerId, messageInput.value);
+        if (!result.success) throw new Error(result.message);
+        messageInput.value = '';
+        await loadMessages();
+        setStatus(messageStatus, result.message, 'success');
+      } catch (error) {
+        setStatus(messageStatus, error.message, 'error');
+      } finally {
+        renderMessages();
+      }
+    });
+  }
+
+  if (resourceAdminForm) {
+    resourceAdminForm.addEventListener('reset', () => {
+      setTimeout(() => {
+        resourceAdminForm.elements.namedItem('id').value = '';
+        resourceFormHeading.textContent = 'Add a resource';
+        resourceFormSubmit.textContent = 'Add resource';
+      }, 0);
+    });
+    resourceAdminForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const payload = readForm(resourceAdminForm);
+      payload.published = resourceAdminForm.elements.namedItem('published').checked;
+      resourceFormSubmit.disabled = true;
+      setStatus(resourceAdminStatus, 'Saving resource…');
+      try {
+        const result = await window.KGData.saveResource(payload);
+        if (!result.success) throw new Error(result.message);
+        resetResourceForm();
+        await loadResourceLibrary();
+        setStatus(resourceAdminStatus, result.message, 'success');
+      } catch (error) {
+        setStatus(resourceAdminStatus, error.message, 'error');
+      } finally {
+        resourceFormSubmit.disabled = false;
+      }
+    });
+  }
+
+  if (eventAdminForm) {
+    eventAdminForm.addEventListener('reset', () => {
+      setTimeout(() => {
+        eventAdminForm.elements.namedItem('id').value = '';
+        eventFormHeading.textContent = 'Create an event';
+        eventFormSubmit.textContent = 'Create event';
+      }, 0);
+    });
+    eventAdminForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const payload = readForm(eventAdminForm);
+      const submit = eventFormSubmit;
+      submit.disabled = true;
+      setStatus(eventAdminStatus, 'Saving event…');
+      try {
+        const result = await window.KGData.saveEvent(payload);
+        if (!result.success) throw new Error(result.message);
+        resetEventForm();
+        setStatus(eventAdminStatus, result.message, 'success');
+        await loadEvents();
+      } catch (error) {
+        setStatus(eventAdminStatus, error.message, 'error');
+      } finally {
+        submit.disabled = false;
+      }
+    });
+  }
+
+  document.querySelectorAll('[data-action-export="members"]').forEach((button) => {
+    button.addEventListener('click', exportAdminMembers);
+  });
+  document.querySelectorAll('[data-action-export="reports"]').forEach((button) => {
+    button.addEventListener('click', exportModerationReports);
+  });
+
+  if (menuToggle && header) {
+    menuToggle.addEventListener('click', function () {
+      const isOpen = header.classList.toggle('is-open');
+      menuToggle.setAttribute('aria-expanded', String(isOpen));
+    });
+  }
+
+  if (form && formStatus) {
+    form.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      const payload = readForm(form);
+      const service = window.KGData && typeof window.KGData.submitApplication === 'function'
+        ? window.KGData
+        : null;
+
+      if (!service) {
+        setStatus(formStatus, 'Application service unavailable. Please try again after Supabase is configured.', 'error');
+        return;
+      }
+
+      try {
+        const result = await service.submitApplication(payload);
+        setStatus(formStatus, result.message || 'Application submitted.', result.success ? 'success' : 'error');
+        if (result.success) form.reset();
+      } catch (error) {
+        setStatus(formStatus, `Application could not be submitted: ${error.message}`, 'error');
+      }
+    });
+  }
+
+  if (loginForm && loginStatus) {
+    loginForm.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      const payload = readForm(loginForm);
+      const service = window.KGData && typeof window.KGData.signIn === 'function'
+        ? window.KGData
+        : null;
+
+      if (!service) {
+        setStatus(loginStatus, 'Sign-in service unavailable. Configure Supabase before signing in.', 'error');
+        return;
+      }
+
+      try {
+        const result = await service.signIn(payload);
+        setStatus(loginStatus, result.message || 'Login successful.', result.success ? 'success' : 'error');
+        if (result.success) {
+          loginForm.reset();
+          const nextPage = result.role === 'admin' ? 'admin-dashboard.html' : 'member-dashboard.html';
+          setTimeout(() => window.location.replace(nextPage), 700);
+        }
+      } catch (error) {
+        setStatus(loginStatus, `Sign-in failed: ${error.message}`, 'error');
+      }
+    });
+  }
+
+  const recoveryRequested = new URLSearchParams(window.location.search).has('password-recovery');
+  const showPasswordRecovery = () => {
+    if (!loginForm || !passwordRecoveryForm) return;
+    loginForm.hidden = true;
+    passwordRecoveryForm.hidden = false;
+  };
+  document.getElementById('forgotPasswordButton')?.addEventListener('click', async () => {
+    const email = loginForm?.elements.namedItem('email')?.value || '';
+    const button = document.getElementById('forgotPasswordButton');
+    button.disabled = true;
+    try {
+      const result = await window.KGData.requestPasswordReset(email);
+      setStatus(loginStatus, result.message, result.success ? 'success' : 'error');
+    } catch (error) {
+      setStatus(loginStatus, `Password reset could not be requested: ${error.message}`, 'error');
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  if (passwordRecoveryForm && passwordRecoveryStatus && window.KGData?.client) {
+    const revealIfRecoverySession = async () => {
+      if (!recoveryRequested) return;
+      const { data, error } = await window.KGData.client.auth.getSession();
+      if (error) {
+        setStatus(passwordRecoveryStatus, `Password reset session could not be checked: ${error.message}`, 'error');
+      } else if (data.session) {
+        showPasswordRecovery();
+      }
+    };
+    window.KGData.client.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') showPasswordRecovery();
+    });
+    revealIfRecoverySession();
+    passwordRecoveryForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const values = readForm(passwordRecoveryForm);
+      if (values.newPassword !== values.confirmPassword) {
+        setStatus(passwordRecoveryStatus, 'The passwords do not match.', 'error');
+        return;
+      }
+      const submit = passwordRecoveryForm.querySelector('[type="submit"]');
+      submit.disabled = true;
+      try {
+        const result = await window.KGData.updateAccountPassword(values.newPassword);
+        setStatus(passwordRecoveryStatus, result.message, result.success ? 'success' : 'error');
+        if (result.success) passwordRecoveryForm.reset();
+      } catch (error) {
+        setStatus(passwordRecoveryStatus, `Password could not be updated: ${error.message}`, 'error');
+      } finally {
+        submit.disabled = false;
+      }
+    });
+  }
+
+  if (settingsForm && settingsStatus) {
+    settingsForm.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      const payload = readForm(settingsForm);
+      const service = window.KGData && typeof window.KGData.syncProfile === 'function'
+        ? window.KGData
+        : null;
+
+      if (!service) {
+        setStatus(settingsStatus, 'Settings service unavailable. Configure Supabase before saving.', 'error');
+        return;
+      }
+
+      try {
+        const result = await service.syncProfile({
+          fullName: payload.fullName,
+          email: payload.email,
+          currentRole: payload.currentRole,
+          company: payload.company,
+          location: payload.location,
+          linkedin: payload.linkedin,
+          bio: payload.bio,
+          weeklyDigest: payload.weeklyDigest === 'on',
+          eventReminders: payload.eventReminders === 'on',
+          mentionsReplies: payload.mentionsReplies === 'on',
+          newForumActivity: payload.newForumActivity === 'on',
+          showProfile: payload.showProfile === 'on',
+          allowDm: payload.allowDm === 'on',
+          showNetworkSuggestions: payload.showNetworkSuggestions === 'on'
+        });
+        setStatus(settingsStatus, result.message || 'Settings saved.', result.success ? 'success' : 'error');
+      } catch (error) {
+        setStatus(settingsStatus, `Settings could not be saved: ${error.message}`, 'error');
+      }
+    });
+  }
+
+  if (forumForm && forumStatus && forumFeed) {
+    const textInput = forumForm.querySelector('textarea[name="discussion"]');
+    const topicInput = forumForm.elements.namedItem('topic');
+
+    forumForm.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      const content = (textInput && textInput.value || '').trim();
+      const topicName = topicInput?.value || 'General';
+      if (!content) {
+        setStatus(forumStatus, 'Please write a thoughtful discussion before posting.', 'error');
+        return;
+      }
+
+      const service = window.KGData && typeof window.KGData.createForumPost === 'function' ? window.KGData : null;
+      if (!service) {
+        setStatus(forumStatus, 'Forum service unavailable. Configure Supabase before posting.', 'error');
+        return;
+      }
+
+      let result;
+      try {
+        result = await service.createForumPost({ topic: topicName, content });
+      } catch (error) {
+        setStatus(forumStatus, `Discussion could not be posted: ${error.message}`, 'error');
+        return;
+      }
+
+      if (result.success) {
+        forumForm.reset();
+        await loadCommunityForum();
+      }
+
+      setStatus(forumStatus, result.message || 'Discussion posted.', result.success ? 'success' : 'error');
+    });
+  }
+});

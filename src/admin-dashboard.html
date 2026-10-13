@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard | CEOs & Entrepreneurs Conversations</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body class="dashboard-body admin-body" data-auth-role="admin">
+    <script>document.documentElement.classList.add('auth-pending');</script>
+    <header class="site-header dashboard-header">
+      <div class="container nav-wrap">
+        <a href="index.html" class="brand" aria-label="KG Multisector Limited home">
+          <img src="assets/kg-logo.png" alt="KG Multisector Limited logo" class="brand-logo" />
+          <div class="brand-copy">
+            <span class="brand-label">KG MULTISECTOR</span>
+            <span class="brand-sub">LIMITED</span>
+          </div>
+        </a>
+
+        <nav class="main-nav" aria-label="Admin dashboard navigation">
+          <a href="admin-dashboard.html" class="active">Overview</a>
+          <a href="members-directory.html">Members</a>
+          <a href="#application-review">Applications</a>
+          <a href="member-onboarding.html">Onboarding</a>
+          <a href="conversations.html">Conversations</a>
+          <a href="events.html">Events</a>
+          <a href="community-forum.html">Discussions</a>
+          <a href="resources.html">Resources</a>
+        </nav>
+
+        <div class="nav-actions dashboard-actions">
+          <button class="icon-button" aria-label="Notifications">🔔</button>
+          <div class="profile-pill">
+            <span class="avatar-mini" data-profile-initials>KG</span>
+            <span data-profile-name>KAZUNGU GERALD</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="dashboard-shell">
+      <div class="container dashboard-grid admin-grid">
+        <aside class="dashboard-sidebar admin-sidebar">
+          <div class="sidebar-card user-panel">
+            <div class="avatar-large" data-profile-initials>KG</div>
+            <div>
+              <h2 data-profile-name>KAZUNGU GERALD</h2>
+              <p data-profile-role>CEO &amp; Founder</p>
+            </div>
+            <span class="status-badge" data-profile-company>KG MULTISECTOR LIMITED</span>
+          </div>
+
+          <nav class="sidebar-nav" aria-label="Admin sidebar navigation">
+            <a href="admin-dashboard.html" class="active">Overview</a>
+            <a href="members-directory.html">Members</a>
+            <a href="#application-review">Applications</a>
+            <a href="member-onboarding.html">Onboarding</a>
+            <a href="conversations.html">Conversations</a>
+            <a href="events.html">Events</a>
+            <a href="#analytics">Analytics</a>
+            <a href="notifications.html">Announcements</a>
+            <a href="member-settings.html">Settings</a>
+          </nav>
+        </aside>
+
+        <section class="dashboard-main admin-main">
+          <div class="topbar">
+            <div>
+              <p class="section-kicker">Admin Dashboard</p>
+              <h1>Community overview</h1>
+            </div>
+            <a href="#application-review" class="btn btn-primary">Review Applications</a>
+          </div>
+
+          <div class="stats-grid admin-stats">
+            <article class="stat-card accent">
+              <span class="stat-label">Total Members</span>
+              <strong id="adminTotalMembers">—</strong>
+              <small id="adminMemberGrowth">Loading member trend…</small>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">Pending Applications</span>
+              <strong id="pendingApplicationCount">—</strong>
+              <small>Pending review</small>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">Upcoming Events</span>
+              <strong id="adminUpcomingEvents">—</strong>
+              <small>Published events ahead</small>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">Forum Discussions</span>
+              <strong id="adminForumDiscussions">—</strong>
+              <small>Member-created posts</small>
+            </article>
+          </div>
+
+          <div class="content-grid admin-content-grid">
+            <article class="panel-card-wide" id="analytics">
+              <div class="panel-header-row">
+                <h3>Member Growth</h3>
+                <button class="text-button" type="button" data-action-export="members">Download member report</button>
+              </div>
+
+              <div class="chart-bars" aria-label="Member growth chart">
+                <span style="height: 28%"></span>
+                <span style="height: 34%"></span>
+                <span style="height: 22%"></span>
+                <span style="height: 56%"></span>
+                <span style="height: 64%"></span>
+                <span style="height: 74%"></span>
+                <span style="height: 92%"></span>
+              </div>
+            </article>
+
+            <article class="panel-card-wide" id="application-review">
+              <div class="panel-header-row">
+                <h3>Application Review</h3>
+                <span id="applicationReviewStatus" class="form-status" aria-live="polite"></span>
+              </div>
+
+              <ul class="application-list" id="adminApplicationList">
+                <li><p>Loading applications…</p></li>
+              </ul>
+            </article>
+          </div>
+
+          <div class="content-grid lower-grid">
+            <article class="panel-card-wide">
+              <div class="panel-header-row">
+                <h3>Community tools</h3>
+                <a href="community-forum.html">Open forum</a>
+              </div>
+
+                <div class="quick-actions">
+                  <a href="conversations.html">View scheduled sessions</a>
+                  <a href="events.html">Create or update an event</a>
+                  <a href="admin-moderation.html">Review community reports</a>
+                  <a href="resources.html">Manage member resources</a>
+                </div>
+            </article>
+
+            <article class="panel-card-wide">
+              <div class="panel-header-row">
+                <h3>Quick Actions</h3>
+                <span>Available actions</span>
+              </div>
+
+              <div class="quick-actions">
+                <a href="membership-application.html">Open membership application</a>
+                <a href="events.html">View event listings</a>
+                <a href="notifications.html">View announcements</a>
+                <button type="button" data-action-export="members">Export member directory</button>
+              </div>
+              <p class="form-status" id="adminActionStatus" aria-live="polite"></p>
+            </article>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/supabase-auth-guard.js"></script>
+    <script src="js/main.js"></script>
+  </body>
+</html>

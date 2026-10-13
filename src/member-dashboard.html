@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Member Dashboard | CEOs & Entrepreneurs Conversations</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body class="dashboard-body" data-auth-role="member">
+    <script>document.documentElement.classList.add('auth-pending');</script>
+    <header class="site-header dashboard-header">
+      <div class="container nav-wrap">
+        <a href="index.html" class="brand" aria-label="KG Multisector Limited home">
+          <img src="assets/kg-logo.png" alt="KG Multisector Limited logo" class="brand-logo" />
+          <div class="brand-copy">
+            <span class="brand-label">KG MULTISECTOR</span>
+            <span class="brand-sub">LIMITED</span>
+          </div>
+        </a>
+
+        <nav class="main-nav" aria-label="Member dashboard navigation">
+          <a href="member-dashboard.html" class="active">Dashboard</a>
+          <a href="community-forum.html">Community</a>
+          <a href="conversations.html">Conversations</a>
+          <a href="events.html">Events</a>
+          <a href="members-directory.html">Members</a>
+          <a href="member-network.html">Connections</a>
+          <a href="messages.html">Messages</a>
+          <a href="resources.html">Resources</a>
+          <a href="member-profile.html">My Profile</a>
+        </nav>
+
+        <div class="nav-actions dashboard-actions">
+          <button class="icon-button" aria-label="Notifications">🔔</button>
+          <div class="profile-pill">
+            <span class="avatar-mini" data-profile-initials>AK</span>
+            <span data-profile-name>Amina Kabera</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="dashboard-shell">
+      <div class="container dashboard-grid">
+        <aside class="dashboard-sidebar">
+          <div class="sidebar-card user-panel">
+            <div class="avatar-large" data-profile-initials>AK</div>
+            <div>
+              <h2 data-profile-name>Amina Kabera</h2>
+              <p><span data-profile-role>Founder</span>, <span data-profile-company>Kiri Labs</span></p>
+            </div>
+            <span class="status-badge">Verified Member</span>
+          </div>
+
+          <nav class="sidebar-nav" aria-label="Sidebar navigation">
+            <a href="member-dashboard.html" class="active">Overview</a>
+            <a href="community-forum.html">My Community</a>
+            <a href="conversations.html">Private Conversations</a>
+            <a href="events.html">Events</a>
+            <a href="member-network.html">Connections</a>
+            <a href="messages.html">Messages</a>
+            <a href="resources.html">Resources</a>
+            <a href="member-settings.html">Settings</a>
+          </nav>
+        </aside>
+
+        <section class="dashboard-main">
+          <div class="topbar">
+            <div>
+              <p class="section-kicker">Member Dashboard</p>
+              <h1>Welcome back, <span data-profile-name>Amina</span>.</h1>
+            </div>
+            <a href="community-forum.html" class="btn btn-primary">Explore Community</a>
+          </div>
+
+          <div class="stats-grid">
+            <article class="stat-card accent">
+              <span class="stat-label">Member Connections</span>
+              <strong id="memberConnectionCount">—</strong>
+              <small>Accepted connections</small>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">Upcoming Sessions</span>
+              <strong id="memberConversationCount">—</strong>
+              <small>Upcoming community sessions</small>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">My Event RSVPs</span>
+              <strong id="memberEventRsvpCount">—</strong>
+              <small id="memberEventRsvpNote">Your event registrations</small>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">Unread Messages</span>
+              <strong id="memberUnreadMessageCount">—</strong>
+              <small>Unread direct messages</small>
+            </article>
+          </div>
+
+          <div class="content-grid">
+            <article class="panel-card-wide">
+              <div class="panel-header-row">
+                <h3>Upcoming Conversations</h3>
+                <a href="conversations.html">See all</a>
+              </div>
+
+              <p class="form-status" id="memberDashboardStatus" aria-live="polite">Loading your community…</p>
+              <div class="conversation-list" id="memberUpcomingEvents"></div>
+            </article>
+
+            <article class="panel-card-wide">
+              <div class="panel-header-row">
+                <h3>Recent Activity</h3>
+                <a href="notifications.html">View feed</a>
+              </div>
+
+              <ul class="activity-list" id="memberRecentNotifications"></ul>
+            </article>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/supabase-auth-guard.js"></script>
+    <script src="js/main.js"></script>
+  </body>
+</html>
