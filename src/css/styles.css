@@ -2743,12 +2743,26 @@ textarea {
 }
 
 .application-list li {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
   padding: 14px 0;
   border-top: 1px solid rgba(13, 23, 38, 0.06);
+}
+
+.admin-application-row > div:first-child {
+  min-width: 0;
+}
+
+.application-row-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding-top: 4px;
 }
 
 .application-list li:first-child {
@@ -4501,10 +4515,14 @@ textarea {
   .footer-bottom,
   .topbar,
   .panel-header-row,
-  .conversation-item,
-  .application-list li {
+  .conversation-item {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .application-list li {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
   }
 
   .conversation-item,

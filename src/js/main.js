@@ -470,6 +470,9 @@ document.addEventListener('DOMContentLoaded', function () {
           status.append(option);
         });
 
+        const actions = document.createElement('div');
+        actions.className = 'application-row-actions';
+
         status.addEventListener('change', async function () {
           status.disabled = true;
           setStatus(applicationReviewStatus, 'Saving application status…');
@@ -529,7 +532,7 @@ document.addEventListener('DOMContentLoaded', function () {
               invite.disabled = false;
             }
           });
-          details.append(invite);
+          actions.append(invite);
         }
             const review = document.createElement('details');
             review.className = 'application-review-details';
@@ -569,6 +572,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             review.append(summary, fields);
             item.append(details, review, status);
+            if (actions.childElementCount) item.append(actions);
             adminApplicationList.append(item);
       });
       if (!result.applications.length) setStatus(applicationReviewStatus, 'Application list is up to date.');
