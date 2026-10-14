@@ -28,6 +28,11 @@ document.addEventListener('DOMContentLoaded', function () {
   const messageComposer = document.getElementById('messageComposer');
   const messageStatus = document.getElementById('messageStatus');
   const messageListStatus = document.getElementById('messageListStatus');
+  const callInboxStatus = document.getElementById('directCallStatus');
+  const callPanel = document.getElementById('directCallPanel');
+  const remoteCallVideo = document.getElementById('remoteCallVideo');
+  const remoteCallAudio = document.getElementById('remoteCallAudio');
+  const localCallVideo = document.getElementById('localCallVideo');
   const newMessageControls = document.getElementById('newMessageControls');
   const newMessageRecipient = document.getElementById('newMessageRecipient');
   const resourceGrid = document.getElementById('resourceGrid');
@@ -43,6 +48,15 @@ document.addEventListener('DOMContentLoaded', function () {
   let messageProfile = null;
   let messageDirectory = [];
   let activeMessagePartnerId = null;
+  let callInboxChannel = null;
+  let callInboxPending = false;
+  let activeCall = null;
+  let incomingCall = null;
+  const seenCallInviteIds = new Set();
+  let voiceRecorder = null;
+  let voiceRecordingStream = null;
+  let voiceRecordingParts = [];
+  let recordedVoiceFile = null;
   let resourceItems = [];
   let activeResourceCategory = 'all';
   let notificationItems = [];
@@ -1247,6 +1261,15 @@ function initialsFor(name) {
 function makeMediaNode(path, url, label) {
   if (!path || !url) return null;
   const extension = path.split('.').pop().toLowerCase().split('?')[0];
+  const isVoiceMessage = path.split('/').pop().startsWith('voice-');
+  if (isVoiceMessage && extension === 'webm') {
+    const audio = document.createElement('audio');
+    audio.src = url;
+    audio.controls = true;
+    audio.preload = 'metadata';
+    audio.setAttribute('aria-label', label || 'Voice message');
+    return audio;
+  }
   if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(extension)) {
     const link = document.createElement('a');
     link.href = url;
@@ -1346,7 +1369,9 @@ function renderMessages() {
     topline.append(name, time);
     const preview = document.createElement('span');
     preview.textContent = latest?.content || (latest?.media_path
-      ? (latest.media_error ? 'Attachment unavailable' : 'Attachment')
+      ? (latest.media_error
+        ? 'Attachment unavailable'
+        : (latest.media_path.split('/').pop().startsWith('voice-') ? 'Voice message' : 'Attachment'))
       : 'Start a conversation');
     copy.append(topline, preview);
     item.append(avatar, copy);
@@ -1370,6 +1395,9 @@ function renderMessages() {
     prompt.textContent = 'Select a member to view your conversation.';
     chatThread.append(prompt);
     sendButton.disabled = true;
+    document.getElementById('startAudioCallButton').disabled = true;
+    document.getElementById('startVideoCallButton').disabled = true;
+    document.getElementById('recordVoiceMessageButton').disabled = true;
     return;
   }
   nameNode.textContent = partner.full_name || 'Member';
@@ -1377,6 +1405,9 @@ function renderMessages() {
   metaNode.textContent = partner.allow_dm ? 'Member messages are private.' : 'This member is not accepting new messages.';
   profileLink.href = 'members-directory.html';
   sendButton.disabled = !partner.allow_dm;
+  document.getElementById('startAudioCallButton').disabled = !partner.allow_dm || Boolean(activeCall);
+  document.getElementById('startVideoCallButton').disabled = !partner.allow_dm || Boolean(activeCall);
+  document.getElementById('recordVoiceMessageButton').disabled = !partner.allow_dm && !voiceRecorder;
   const threadMessages = directMessages.filter((message) =>
     (message.sender_profile_id === messageProfile.id && message.recipient_profile_id === activeMessagePartnerId) ||
     (message.recipient_profile_id === messageProfile.id && message.sender_profile_id === activeMessagePartnerId)
@@ -1395,7 +1426,8 @@ function renderMessages() {
       body.textContent = message.content;
       bubble.append(body);
     }
-    const attachment = makeMediaNode(message.media_path, message.media_url, 'Message attachment');
+    const isVoiceMessage = message.media_path?.split('/').pop().startsWith('voice-');
+    const attachment = makeMediaNode(message.media_path, message.media_url, isVoiceMessage ? 'Voice message' : 'Message attachment');
     if (attachment) {
       bubble.append(attachment);
     } else if (message.media_path) {
@@ -1411,6 +1443,278 @@ function renderMessages() {
     chatThread.append(bubble);
   });
   chatThread.scrollTop = chatThread.scrollHeight;
+}
+
+function setCallPanelState(title, status, controls = {}) {
+  callPanel.hidden = false;
+  callPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  document.getElementById('directCallTitle').textContent = title;
+  callInboxStatus.textContent = status;
+  const acceptButton = document.getElementById('acceptCallButton');
+  const declineButton = document.getElementById('declineCallButton');
+  acceptButton.hidden = !controls.accept;
+  declineButton.hidden = !controls.decline;
+  acceptButton.disabled = false;
+  declineButton.disabled = false;
+  document.getElementById('muteCallButton').hidden = !controls.active;
+  document.getElementById('toggleCallCameraButton').hidden = !controls.active || activeCall?.mode !== 'video';
+  document.getElementById('hangupCallButton').hidden = !controls.active;
+}
+
+function updateCallMediaElements(call) {
+  const remoteStream = call.remoteStream || null;
+  localCallVideo.srcObject = call.localStream || null;
+  localCallVideo.hidden = call.mode !== 'video' || !call.localStream;
+  remoteCallVideo.srcObject = call.mode === 'video' ? remoteStream : null;
+  remoteCallVideo.hidden = call.mode !== 'video' || !remoteStream;
+  remoteCallAudio.srcObject = call.mode === 'audio' ? remoteStream : null;
+  remoteCallAudio.hidden = call.mode !== 'audio' || !remoteStream;
+}
+
+function createDirectCallPeer(call) {
+  const peer = new RTCPeerConnection({
+    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+  });
+  call.peer = peer;
+  call.localStream.getTracks().forEach((track) => peer.addTrack(track, call.localStream));
+  peer.ontrack = (event) => {
+    call.remoteStream = event.streams[0] || new MediaStream([event.track]);
+    remoteCallVideo.srcObject = call.mode === 'video' ? call.remoteStream : null;
+    remoteCallVideo.hidden = call.mode !== 'video';
+    remoteCallAudio.srcObject = call.mode === 'audio' ? call.remoteStream : null;
+    remoteCallAudio.hidden = call.mode !== 'audio';
+    if (call.mode === 'video') remoteCallVideo.play().catch(() => {});
+    else remoteCallAudio.play().catch(() => {});
+    callInboxStatus.textContent = 'Connected';
+  };
+  peer.onicecandidate = (event) => {
+    if (event.candidate && activeCall === call) {
+      call.signaling.send({
+        type: 'candidate',
+        callId: call.id,
+        candidate: event.candidate.toJSON()
+      }).catch((error) => setStatus(messageStatus, error.message, 'error'));
+    }
+  };
+  peer.onconnectionstatechange = () => {
+    if (peer.connectionState === 'failed') {
+      void endDirectCall(false, 'Call connection failed. Try again or use a different network.', 'error');
+    }
+  };
+  updateCallMediaElements(call);
+  return peer;
+}
+
+async function flushDirectCallCandidates(call) {
+  if (!call.peer.remoteDescription) return;
+  for (const candidate of call.pendingCandidates.splice(0)) {
+    await call.peer.addIceCandidate(new RTCIceCandidate(candidate));
+  }
+}
+
+async function handleDirectCallSignal(call, payload) {
+  if (activeCall !== call || payload?.callId !== call.id) return;
+  if (payload.type === 'declined') {
+    await endDirectCall(false, 'The member declined the call.');
+  } else if (payload.type === 'hangup') {
+    await endDirectCall(false, 'The member ended the call.');
+  } else if (payload.type === 'accepted' && call.role === 'caller') {
+    call.accepted = true;
+    window.clearTimeout(call.timeout);
+    setCallPanelState(`Calling ${call.partnerName}`, 'Connecting…', { active: true });
+    const peer = createDirectCallPeer(call);
+    const offer = await peer.createOffer();
+    await peer.setLocalDescription(offer);
+    await call.signaling.send({ type: 'offer', callId: call.id, description: peer.localDescription });
+  } else if (payload.type === 'offer' && call.role === 'callee') {
+    await call.peer.setRemoteDescription(new RTCSessionDescription(payload.description));
+    await flushDirectCallCandidates(call);
+    const answer = await call.peer.createAnswer();
+    await call.peer.setLocalDescription(answer);
+    await call.signaling.send({ type: 'answer', callId: call.id, description: call.peer.localDescription });
+  } else if (payload.type === 'answer' && call.role === 'caller') {
+    await call.peer.setRemoteDescription(new RTCSessionDescription(payload.description));
+    await flushDirectCallCandidates(call);
+  } else if (payload.type === 'candidate') {
+    if (!call.peer || !call.peer.remoteDescription) call.pendingCandidates.push(payload.candidate);
+    else await call.peer.addIceCandidate(new RTCIceCandidate(payload.candidate));
+  }
+}
+
+async function endDirectCall(sendSignal, status, tone = '') {
+  const call = activeCall;
+  activeCall = null;
+  incomingCall = null;
+  if (call) {
+    window.clearTimeout(call.timeout);
+    call.peer?.close();
+    call.localStream?.getTracks().forEach((track) => track.stop());
+  }
+  localCallVideo.srcObject = null;
+  remoteCallVideo.srcObject = null;
+  remoteCallAudio.srcObject = null;
+  callPanel.hidden = true;
+  if (status) setStatus(messageStatus, status, tone);
+  renderMessages();
+  if (call) {
+    if (sendSignal && call.signaling) {
+      try {
+        await call.signaling.send({ type: 'hangup', callId: call.id });
+      } catch (error) {
+        setStatus(messageStatus, error.message, 'error');
+      }
+    }
+    try {
+      if (call.id) await window.KGData.deleteDirectCallInvite(call.id);
+    } catch (error) {
+      setStatus(messageStatus, error.message, 'error');
+    }
+    if (call.signaling) {
+      try {
+        await call.signaling.close();
+      } catch (error) {
+        setStatus(messageStatus, `Call signaling could not close cleanly: ${error.message}`, 'error');
+      }
+    }
+  }
+}
+
+async function startDirectCall(mode) {
+  if (!activeMessagePartnerId || activeCall) return;
+  const partner = messageDirectory.find((member) => member.id === activeMessagePartnerId);
+  if (!partner) {
+    setStatus(messageStatus, 'Select a member before starting a call.', 'error');
+    return;
+  }
+  if (!navigator.mediaDevices?.getUserMedia || !window.RTCPeerConnection) {
+    setStatus(messageStatus, 'Calls need a supported browser and a secure HTTPS connection.', 'error');
+    return;
+  }
+  const call = {
+    id: crypto.randomUUID(),
+    partnerId: partner.id,
+    partnerName: partner.full_name || 'Member',
+    mode,
+    role: 'caller',
+    pendingCandidates: []
+  };
+  activeCall = call;
+  renderMessages();
+  setCallPanelState(`Calling ${call.partnerName}`, 'Allow microphone access to start the call…');
+  try {
+    call.localStream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: mode === 'video'
+    });
+    updateCallMediaElements(call);
+    call.signaling = await window.KGData.openDirectCallChannel(call.partnerId, (payload) => {
+      void handleDirectCallSignal(call, payload).catch((error) => {
+        setStatus(messageStatus, error.message, 'error');
+        void endDirectCall(false, 'The call could not be connected.', 'error');
+      });
+    });
+    call.timeout = window.setTimeout(() => {
+      if (activeCall === call) void endDirectCall(true, 'No answer. The call ended.');
+    }, 45000);
+    await window.KGData.sendDirectCallInvite(call.partnerId, {
+      type: 'invite',
+      callId: call.id,
+      callerProfileId: messageProfile.id,
+      recipientProfileId: call.partnerId,
+      mode
+    });
+    if (!call.accepted) setCallPanelState(`Calling ${call.partnerName}`, 'Ringing…', { active: true });
+  } catch (error) {
+    await endDirectCall(false, error.message, 'error');
+  }
+}
+
+async function handleIncomingDirectCall(payload) {
+  const inviteCreatedAt = Date.parse(payload?.createdAt || '');
+  if (
+    payload?.type === 'invite' &&
+    payload.callId &&
+    Number.isFinite(inviteCreatedAt) &&
+    Date.now() - inviteCreatedAt > 45000
+  ) {
+    await window.KGData.deleteDirectCallInvite(payload.callId);
+    return;
+  }
+  if (
+    payload?.type !== 'invite' ||
+    payload.recipientProfileId !== messageProfile?.id ||
+    !payload.callId ||
+    !Number.isFinite(inviteCreatedAt) ||
+    Date.now() - inviteCreatedAt > 45000 ||
+    inviteCreatedAt > Date.now() + 5000 ||
+    !['audio', 'video'].includes(payload.mode)
+  ) return;
+  if (seenCallInviteIds.has(payload.callId)) return;
+  seenCallInviteIds.add(payload.callId);
+  if (activeCall || incomingCall) {
+    const busyChannel = await window.KGData.openDirectCallChannel(payload.callerProfileId, () => {});
+    try {
+      await busyChannel.send({ type: 'declined', callId: payload.callId });
+    } finally {
+      try {
+        await busyChannel.close();
+      } finally {
+        await window.KGData.deleteDirectCallInvite(payload.callId);
+      }
+    }
+    return;
+  }
+  const caller = messageDirectory.find((member) => member.id === payload.callerProfileId);
+  if (!caller) return;
+  const call = {
+    id: payload.callId,
+    partnerId: caller.id,
+    partnerName: caller.full_name || 'Member',
+    mode: payload.mode,
+    role: 'callee',
+    pendingCandidates: []
+  };
+  activeCall = call;
+  incomingCall = payload;
+  try {
+    await openMessageConversation(caller.id);
+    call.signaling = await window.KGData.openDirectCallChannel(caller.id, (signal) => {
+      void handleDirectCallSignal(call, signal).catch((error) => {
+        setStatus(messageStatus, error.message, 'error');
+        void endDirectCall(false, 'The call could not be connected.', 'error');
+      });
+    });
+  } catch (error) {
+    await endDirectCall(false, error.message, 'error');
+    throw error;
+  }
+  setCallPanelState(
+    `${call.partnerName} is calling`,
+    `Incoming ${call.mode} call`,
+    { accept: true, decline: true }
+  );
+  call.timeout = window.setTimeout(() => {
+    if (activeCall === call) void endDirectCall(true, 'The call invitation expired.');
+  }, 45000);
+}
+
+async function ensureDirectCallInbox() {
+  if (callInboxChannel || callInboxPending || !messageProfile) return;
+  callInboxPending = true;
+  try {
+    callInboxChannel = await window.KGData.subscribeToDirectCallInbox(
+      messageProfile.id,
+      (payload) => {
+        void handleIncomingDirectCall(payload).catch((error) => {
+          setStatus(messageStatus, error.message, 'error');
+        });
+      }
+    );
+  } catch (error) {
+    setStatus(messageStatus, `Calls are unavailable: ${error.message}`, 'error');
+  } finally {
+    callInboxPending = false;
+  }
 }
 
 async function openMessageConversation(partnerId) {
@@ -1433,6 +1737,7 @@ async function loadMessages() {
     directMessages = messageResult.messages;
     messageProfile = messageResult.profile;
     messageDirectory = members;
+    void ensureDirectCallInbox();
     const recipientSelect = newMessageRecipient;
     if (recipientSelect) {
       const availableRecipients = members.filter((member) => member.allow_dm && member.id !== messageProfile.id);
@@ -2037,6 +2342,83 @@ async function loadMemberDirectory() {
   });
 
   document.getElementById('messageSearch')?.addEventListener('input', renderMessages);
+  const emojiToggleButton = document.getElementById('emojiToggleButton');
+  const emojiPicker = document.getElementById('emojiPicker');
+  emojiToggleButton?.addEventListener('click', () => {
+    emojiPicker.hidden = !emojiPicker.hidden;
+    emojiToggleButton.setAttribute('aria-expanded', String(!emojiPicker.hidden));
+  });
+  emojiPicker?.addEventListener('click', (event) => {
+    const emojiButton = event.target.closest('[data-message-emoji]');
+    if (!emojiButton || !messageComposer) return;
+    const input = messageComposer.elements.namedItem('message');
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    input.setRangeText(emojiButton.dataset.messageEmoji, start, end, 'end');
+    input.focus();
+    emojiPicker.hidden = true;
+    emojiToggleButton.setAttribute('aria-expanded', 'false');
+  });
+
+  document.getElementById('startAudioCallButton')?.addEventListener('click', () => startDirectCall('audio'));
+  document.getElementById('startVideoCallButton')?.addEventListener('click', () => startDirectCall('video'));
+  document.getElementById('acceptCallButton')?.addEventListener('click', async (event) => {
+    const call = activeCall;
+    if (!call || call.role !== 'callee') return;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setStatus(messageStatus, 'Calls need a supported browser and a secure HTTPS connection.', 'error');
+      return;
+    }
+    try {
+      event.currentTarget.disabled = true;
+      document.getElementById('declineCallButton').disabled = true;
+      callInboxStatus.textContent = 'Allow microphone access to join…';
+      call.localStream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: call.mode === 'video'
+      });
+      createDirectCallPeer(call);
+      incomingCall = null;
+      window.clearTimeout(call.timeout);
+      setCallPanelState(`Call with ${call.partnerName}`, 'Connecting…', { active: true });
+      await call.signaling.send({ type: 'accepted', callId: call.id });
+    } catch (error) {
+      await endDirectCall(true, error.message, 'error');
+    }
+  });
+  document.getElementById('declineCallButton')?.addEventListener('click', async () => {
+    const call = activeCall;
+    if (!call) return;
+    try {
+      await call.signaling?.send({ type: 'declined', callId: call.id });
+    } catch (error) {
+      setStatus(messageStatus, error.message, 'error');
+    }
+    await endDirectCall(false, 'Call declined.');
+  });
+  document.getElementById('hangupCallButton')?.addEventListener('click', () => {
+    void endDirectCall(true, 'Call ended.');
+  });
+  document.getElementById('muteCallButton')?.addEventListener('click', (event) => {
+    const tracks = activeCall?.localStream?.getAudioTracks() || [];
+    const muted = tracks.some((track) => track.enabled);
+    tracks.forEach((track) => { track.enabled = !muted; });
+    event.currentTarget.textContent = muted ? 'Unmute microphone' : 'Mute microphone';
+  });
+  document.getElementById('toggleCallCameraButton')?.addEventListener('click', (event) => {
+    const tracks = activeCall?.localStream?.getVideoTracks() || [];
+    const enabled = tracks.some((track) => track.enabled);
+    tracks.forEach((track) => { track.enabled = !enabled; });
+    event.currentTarget.textContent = enabled ? 'Turn camera on' : 'Turn camera off';
+  });
+  window.addEventListener('pagehide', () => {
+    activeCall?.peer?.close();
+    activeCall?.localStream?.getTracks().forEach((track) => track.stop());
+    if (activeCall?.signaling) void activeCall.signaling.close();
+    if (callInboxChannel) void callInboxChannel.close();
+    if (voiceRecorder?.state === 'recording') voiceRecorder.stop();
+    voiceRecordingStream?.getTracks().forEach((track) => track.stop());
+  });
   document.getElementById('newMessageButton')?.addEventListener('click', () => {
     newMessageControls.hidden = !newMessageControls.hidden;
     if (!newMessageControls.hidden) newMessageRecipient.focus();
@@ -2057,11 +2439,77 @@ async function loadMemberDirectory() {
     const mediaInput = messageComposer.elements.namedItem('mediaFile');
     const attachmentName = document.getElementById('messageAttachmentName');
     mediaInput.addEventListener('change', () => {
+      recordedVoiceFile = null;
       attachmentName.textContent = mediaInput.files[0]?.name || 'Attach';
+    });
+    document.getElementById('recordVoiceMessageButton').addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      if (voiceRecorder?.state === 'recording') {
+        voiceRecorder.stop();
+        return;
+      }
+      if (!activeMessagePartnerId) {
+        setStatus(messageStatus, 'Choose a conversation before recording a voice message.', 'error');
+        return;
+      }
+      if (activeCall) {
+        setStatus(messageStatus, 'End the call before recording a voice message.', 'error');
+        return;
+      }
+      if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+        setStatus(messageStatus, 'Voice messages are not supported by this browser.', 'error');
+        return;
+      }
+      try {
+        mediaInput.value = '';
+        recordedVoiceFile = null;
+        attachmentName.textContent = 'Attach';
+        voiceRecordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mimeType = ['audio/webm;codecs=opus', 'audio/webm']
+          .find((type) => MediaRecorder.isTypeSupported(type));
+        if (!mimeType) throw new Error('This browser cannot record a supported voice-message format.');
+        voiceRecordingParts = [];
+        voiceRecorder = new MediaRecorder(voiceRecordingStream, { mimeType });
+        voiceRecorder.addEventListener('dataavailable', (recordingEvent) => {
+          if (recordingEvent.data.size) voiceRecordingParts.push(recordingEvent.data);
+        });
+        voiceRecorder.addEventListener('stop', () => {
+          const recording = new Blob(voiceRecordingParts, { type: 'audio/webm' });
+          recordedVoiceFile = recording.size
+            ? new File([recording], 'voice-note.webm', { type: 'audio/webm' })
+            : null;
+          voiceRecordingStream?.getTracks().forEach((track) => track.stop());
+          voiceRecordingStream = null;
+          voiceRecorder = null;
+          button.textContent = '🎙️';
+          button.setAttribute('aria-label', 'Record a voice message');
+          document.getElementById('voiceRecordingStatus').textContent = recordedVoiceFile
+            ? 'Voice note ready. Press Send to send it.'
+            : 'No audio was recorded.';
+          attachmentName.textContent = recordedVoiceFile ? 'Voice note ready' : 'Attach';
+          if (recordedVoiceFile) setStatus(messageStatus, 'Voice note ready to send.');
+        }, { once: true });
+        voiceRecorder.start();
+        button.textContent = '■';
+        button.setAttribute('aria-label', 'Stop recording');
+        document.getElementById('voiceRecordingStatus').textContent = 'Recording…';
+        setStatus(messageStatus, '');
+      } catch (error) {
+        voiceRecordingStream?.getTracks().forEach((track) => track.stop());
+        voiceRecordingStream = null;
+        voiceRecorder = null;
+        button.textContent = '🎙️';
+        button.setAttribute('aria-label', 'Record a voice message');
+        setStatus(messageStatus, error.message, 'error');
+      }
     });
     messageComposer.addEventListener('submit', async (event) => {
       event.preventDefault();
       const messageInput = messageComposer.elements.namedItem('message');
+      if (voiceRecorder?.state === 'recording') {
+        setStatus(messageStatus, 'Stop the voice recording before sending.', 'error');
+        return;
+      }
       if (!activeMessagePartnerId) {
         setStatus(messageStatus, 'Choose a conversation or start one before sending.', 'error');
         return;
@@ -2072,11 +2520,13 @@ async function loadMemberDirectory() {
       try {
         const result = await window.KGData.sendDirectMessage(activeMessagePartnerId, {
           content: messageInput.value,
-          mediaFile: mediaInput.files[0] || null
+          mediaFile: mediaInput.files[0] || recordedVoiceFile
         });
         if (!result.success) throw new Error(result.message);
         messageInput.value = '';
         mediaInput.value = '';
+        recordedVoiceFile = null;
+        document.getElementById('voiceRecordingStatus').textContent = '';
         attachmentName.textContent = 'Attach';
         await loadMessages();
         setStatus(messageStatus, result.message, 'success');

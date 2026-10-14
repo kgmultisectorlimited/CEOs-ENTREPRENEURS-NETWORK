@@ -33,15 +33,17 @@
     'image/gif',
     'application/pdf',
     'video/mp4',
-    'video/webm'
+    'video/webm',
+    'audio/webm'
   ]);
 
   function validateMediaFile(file, { imagesOnly = false, maxBytes = 50 * 1024 * 1024 } = {}) {
     if (!file) return 'Choose a file first.';
-    if (!mediaMimeTypes.has(file.type) || (imagesOnly && !file.type.startsWith('image/'))) {
+    const mimeType = file.type.split(';')[0];
+    if (!mediaMimeTypes.has(mimeType) || (imagesOnly && !mimeType.startsWith('image/'))) {
       return imagesOnly
         ? 'Profile photos must be JPG, PNG, WebP, or GIF images.'
-        : 'Choose a JPG, PNG, WebP, GIF, PDF, MP4, or WebM file.';
+        : 'Choose a JPG, PNG, WebP, GIF, PDF, MP4, WebM, or WebM audio file.';
     }
     if (file.size > maxBytes) {
       return `The selected file is too large. Maximum size is ${Math.round(maxBytes / (1024 * 1024))} MB.`;
@@ -57,9 +59,10 @@
       'image/gif': 'gif',
       'application/pdf': 'pdf',
       'video/mp4': 'mp4',
-      'video/webm': 'webm'
+      'video/webm': 'webm',
+      'audio/webm': 'webm'
     };
-    const extension = extensions[file.type] || '';
+    const extension = extensions[file.type.split(';')[0]] || '';
     return `${crypto.randomUUID()}${extension ? `.${extension}` : ''}`;
   }
 
@@ -71,7 +74,7 @@
     const validation = validateMediaFile(file, options);
     if (validation) throw new Error(validation);
     const { data, error } = await client.storage.from(mediaBucket).upload(path, file, {
-      contentType: file.type,
+      contentType: file.type.split(';')[0],
       upsert: false
     });
     if (error) throw new Error(`File upload failed: ${error.message}`);
@@ -662,9 +665,10 @@
     let mediaPath = null;
     if (mediaFile) {
       try {
+        const fileName = safeFileName(mediaFile);
         mediaPath = await uploadMedia(
           mediaFile,
-          `messages/${messageId}/${profileResult.profile.auth_user_id}/${safeFileName(mediaFile)}`
+          `messages/${messageId}/${profileResult.profile.auth_user_id}/${mediaFile.type.split(';')[0] === 'audio/webm' ? `voice-${fileName}` : fileName}`
         );
       } catch (error) {
         return { success: false, message: error.message };
@@ -715,6 +719,134 @@
       .is('read_at', null);
     if (error) return { success: false, message: `Messages could not be marked read: ${error.message}` };
     return { success: true };
+  }
+
+  async function subscribeToPrivateBroadcast(topic, onSignal) {
+    if (!client) throw new Error('Supabase is not configured.');
+    const channel = client.channel(topic, { config: { private: true } })
+      .on('broadcast', { event: 'signal' }, ({ payload }) => onSignal(payload));
+    try {
+      await new Promise((resolve, reject) => {
+        let settled = false;
+        const timeout = window.setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          reject(new Error('Call signaling timed out. Please try again.'));
+        }, 10000);
+        channel.subscribe((status, error) => {
+          if (settled) return;
+          if (status === 'SUBSCRIBED') {
+            settled = true;
+            window.clearTimeout(timeout);
+            resolve();
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            settled = true;
+            window.clearTimeout(timeout);
+            reject(new Error(`Call signaling could not connect: ${error?.message || status}`));
+          }
+        });
+      });
+    } catch (error) {
+      await client.removeChannel(channel);
+      throw error;
+    }
+    return {
+      send: async (payload) => {
+        const result = await channel.send({ type: 'broadcast', event: 'signal', payload });
+        if (result !== 'ok') throw new Error(`Call signal could not be sent: ${result}`);
+      },
+      close: () => client.removeChannel(channel)
+    };
+  }
+
+  async function subscribeToDirectCallInbox(profileId, onSignal) {
+    const profileResult = await getCurrentProfile();
+    if (profileResult.error) throw new Error(profileResult.error);
+    if (!profileResult.profile || profileResult.profile.id !== profileId) {
+      throw new Error('Sign in again to receive calls.');
+    }
+    const deliverInvite = (invite) => onSignal({
+      type: 'invite',
+      callId: invite.id,
+      callerProfileId: invite.caller_profile_id,
+      recipientProfileId: invite.recipient_profile_id,
+      mode: invite.mode,
+      createdAt: invite.created_at
+    });
+    const channel = client.channel(`direct-call-inbox:${profileId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'direct_call_invites',
+        filter: `recipient_profile_id=eq.${profileId}`
+      }, ({ new: invite }) => deliverInvite(invite));
+    try {
+      await new Promise((resolve, reject) => {
+        let settled = false;
+        const timeout = window.setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          reject(new Error('Call notifications timed out. Please refresh and try again.'));
+        }, 10000);
+        channel.subscribe((status, error) => {
+          if (settled) return;
+          if (status === 'SUBSCRIBED') {
+            settled = true;
+            window.clearTimeout(timeout);
+            resolve();
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            settled = true;
+            window.clearTimeout(timeout);
+            reject(new Error(`Call notifications could not connect: ${error?.message || status}`));
+          }
+        });
+      });
+    } catch (subscriptionError) {
+      await client.removeChannel(channel);
+      throw subscriptionError;
+    }
+    const since = new Date(Date.now() - 45000).toISOString();
+    const { data, error } = await client
+      .from('direct_call_invites')
+      .select('id, caller_profile_id, recipient_profile_id, mode, created_at')
+      .eq('recipient_profile_id', profileId)
+      .gte('created_at', since)
+      .order('created_at', { ascending: true });
+    if (error) {
+      await client.removeChannel(channel);
+      throw new Error(`Recent call invitations could not be checked: ${error.message}`);
+    }
+    (data || []).forEach(deliverInvite);
+    return { close: () => client.removeChannel(channel) };
+  }
+
+  async function openDirectCallChannel(partnerProfileId, onSignal) {
+    const profileResult = await getCurrentProfile();
+    if (profileResult.error) throw new Error(profileResult.error);
+    if (!profileResult.profile || profileResult.profile.id === partnerProfileId) {
+      throw new Error('Choose another member for the call.');
+    }
+    const participantIds = [profileResult.profile.id, partnerProfileId].sort();
+    return subscribeToPrivateBroadcast(`direct-call:${participantIds.join(':')}`, onSignal);
+  }
+
+  async function sendDirectCallInvite(recipientProfileId, payload) {
+    const profileResult = await getCurrentProfile();
+    if (profileResult.error) throw new Error(profileResult.error);
+    if (!profileResult.profile) throw new Error('Sign in again to make a call.');
+    const { error } = await client.from('direct_call_invites').insert({
+      id: payload.callId,
+      caller_profile_id: profileResult.profile.id,
+      recipient_profile_id: recipientProfileId,
+      mode: payload.mode
+    });
+    if (error) throw new Error(`Call invitation could not be sent: ${error.message}`);
+  }
+
+  async function deleteDirectCallInvite(callId) {
+    if (!client) throw new Error('Supabase is not configured.');
+    const { error } = await client.from('direct_call_invites').delete().eq('id', callId);
+    if (error) throw new Error(`Call invitation could not be cleared: ${error.message}`);
   }
 
   async function loadResources(includeDrafts = false) {
@@ -1392,6 +1524,10 @@
     loadDirectMessages,
     sendDirectMessage,
     markDirectMessagesRead,
+    subscribeToDirectCallInbox,
+    openDirectCallChannel,
+    sendDirectCallInvite,
+    deleteDirectCallInvite,
     loadResources,
     saveResource,
     loadNotifications,

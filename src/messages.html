@@ -73,8 +73,32 @@
                 <span id="activeChatMeta">Your member messages are private.</span>
               </div>
             </div>
-            <a class="btn btn-secondary small-btn" id="activeChatProfile" href="members-directory.html">View members</a>
+            <div class="message-call-actions">
+              <button class="btn btn-secondary small-btn" type="button" id="startAudioCallButton" disabled>Voice call</button>
+              <button class="btn btn-secondary small-btn" type="button" id="startVideoCallButton" disabled>Video call</button>
+              <a class="btn btn-secondary small-btn" id="activeChatProfile" href="members-directory.html">View member</a>
+            </div>
           </div>
+
+          <section class="direct-call-panel" id="directCallPanel" hidden aria-label="Member call">
+            <div class="direct-call-heading">
+              <strong id="directCallTitle">Member call</strong>
+              <span id="directCallStatus" aria-live="polite"></span>
+            </div>
+            <div class="direct-call-media">
+              <video id="remoteCallVideo" autoplay playsinline aria-label="Member video" hidden></video>
+              <audio id="remoteCallAudio" autoplay hidden></audio>
+              <video id="localCallVideo" autoplay playsinline muted aria-label="Your camera preview" hidden></video>
+            </div>
+            <div class="direct-call-controls">
+              <button class="btn btn-primary small-btn" type="button" id="acceptCallButton" hidden>Accept</button>
+              <button class="btn btn-secondary small-btn" type="button" id="declineCallButton" hidden>Decline</button>
+              <button class="btn btn-secondary small-btn" type="button" id="muteCallButton" hidden>Mute microphone</button>
+              <button class="btn btn-secondary small-btn" type="button" id="toggleCallCameraButton" hidden>Turn camera off</button>
+              <button class="btn btn-primary small-btn" type="button" id="hangupCallButton" hidden>End call</button>
+            </div>
+            <p class="direct-call-privacy-note">Calls use WebRTC; your network address may be visible to the other participant and the STUN service.</p>
+          </section>
 
           <p class="form-status" id="messageStatus" aria-live="polite"></p>
           <div class="chat-thread" id="chatThread" aria-live="polite">
@@ -83,6 +107,29 @@
 
           <form class="message-composer" id="messageComposer">
             <input type="text" name="message" maxlength="5000" placeholder="Write a message..." aria-label="Write a message" />
+            <div class="message-emoji-control">
+              <button class="message-tool-button" type="button" id="emojiToggleButton" aria-label="Choose an emoji" aria-expanded="false" aria-controls="emojiPicker">😊</button>
+              <div class="message-emoji-picker" id="emojiPicker" role="group" aria-label="Emojis" hidden>
+                <button type="button" data-message-emoji="😀" aria-label="Grinning face">😀</button>
+                <button type="button" data-message-emoji="😂" aria-label="Face with tears of joy">😂</button>
+                <button type="button" data-message-emoji="😊" aria-label="Smiling face">😊</button>
+                <button type="button" data-message-emoji="😍" aria-label="Heart eyes">😍</button>
+                <button type="button" data-message-emoji="🥰" aria-label="Smiling face with hearts">🥰</button>
+                <button type="button" data-message-emoji="😉" aria-label="Winking face">😉</button>
+                <button type="button" data-message-emoji="🤝" aria-label="Handshake">🤝</button>
+                <button type="button" data-message-emoji="👏" aria-label="Clapping hands">👏</button>
+                <button type="button" data-message-emoji="🙏" aria-label="Folded hands">🙏</button>
+                <button type="button" data-message-emoji="👍" aria-label="Thumbs up">👍</button>
+                <button type="button" data-message-emoji="💪" aria-label="Flexed biceps">💪</button>
+                <button type="button" data-message-emoji="🎉" aria-label="Party popper">🎉</button>
+                <button type="button" data-message-emoji="❤️" aria-label="Red heart">❤️</button>
+                <button type="button" data-message-emoji="🔥" aria-label="Fire">🔥</button>
+                <button type="button" data-message-emoji="💡" aria-label="Light bulb">💡</button>
+                <button type="button" data-message-emoji="✅" aria-label="Check mark">✅</button>
+              </div>
+            </div>
+            <button class="message-tool-button" type="button" id="recordVoiceMessageButton" aria-label="Record a voice message">🎙️</button>
+            <span class="voice-recording-status" id="voiceRecordingStatus" aria-live="polite"></span>
             <label class="message-attachment"><span id="messageAttachmentName">Attach</span>
               <input type="file" name="mediaFile" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,video/mp4,video/webm" aria-label="Attach a photo, document, or video" />
             </label>

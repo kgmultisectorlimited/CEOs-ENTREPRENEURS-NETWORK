@@ -127,6 +127,17 @@ create index if not exists idx_direct_messages_sender_created
 create index if not exists idx_direct_messages_recipient_created
   on public.direct_messages(recipient_profile_id, created_at desc);
 
+create table if not exists public.direct_call_invites (
+  id uuid primary key default gen_random_uuid(),
+  caller_profile_id uuid not null references public.profiles(id) on delete cascade,
+  recipient_profile_id uuid not null references public.profiles(id) on delete cascade,
+  mode text not null check (mode in ('audio', 'video')),
+  created_at timestamptz not null default now(),
+  check (caller_profile_id <> recipient_profile_id)
+);
+create index if not exists idx_direct_call_invites_recipient_created
+  on public.direct_call_invites(recipient_profile_id, created_at desc);
+
 create table if not exists public.resource_library (
   id uuid primary key default gen_random_uuid(),
   title text not null check (char_length(title) between 1 and 180),
@@ -481,7 +492,7 @@ alter table public.events enable row level security;
 alter table public.event_rsvps enable row level security;
 alter table public.notifications enable row level security;
 
-revoke all on public.applications, public.profiles, public.forum_posts, public.forum_reports, public.direct_messages, public.resource_library, public.connection_requests, public.events, public.event_rsvps, public.notifications
+revoke all on public.applications, public.profiles, public.forum_posts, public.forum_reports, public.direct_messages, public.direct_call_invites, public.resource_library, public.connection_requests, public.events, public.event_rsvps, public.notifications
   from anon, authenticated;
 grant insert on public.applications to anon, authenticated;
 grant select, update, delete on public.applications to authenticated;
@@ -490,6 +501,9 @@ grant select, insert, update, delete on public.forum_posts to authenticated;
 grant select, insert, update on public.forum_reports to authenticated;
 grant select, insert on public.direct_messages to authenticated;
 grant update (read_at) on public.direct_messages to authenticated;
+grant select on public.direct_call_invites to authenticated;
+grant insert (id, caller_profile_id, recipient_profile_id, mode) on public.direct_call_invites to authenticated;
+grant delete on public.direct_call_invites to authenticated;
 grant select, insert, update on public.resource_library to authenticated;
 grant select, insert on public.connection_requests to authenticated;
 grant update (status) on public.connection_requests to authenticated;
@@ -570,6 +584,63 @@ create policy "Admins can update forum reports"
   with check (public.is_admin());
 
 alter table public.direct_messages enable row level security;
+alter table public.direct_call_invites enable row level security;
+create or replace function public.can_create_direct_call_invite(p_caller_profile_id uuid, p_recipient_profile_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from public.profiles caller
+    join public.profiles recipient on recipient.id = p_recipient_profile_id
+    where caller.id = p_caller_profile_id
+      and caller.auth_user_id = auth.uid()
+      and caller.id <> recipient.id
+      and recipient.show_profile = true
+      and recipient.allow_dm = true
+  );
+$$;
+
+revoke all on function public.can_create_direct_call_invite(uuid, uuid) from public, anon;
+grant execute on function public.can_create_direct_call_invite(uuid, uuid) to authenticated;
+
+drop policy if exists "Recipients can receive direct call invitations" on public.direct_call_invites;
+drop policy if exists "Call participants can view call invitations" on public.direct_call_invites;
+create policy "Call participants can view call invitations"
+  on public.direct_call_invites for select
+  to authenticated
+  using (
+    exists (
+      select 1 from public.profiles
+      where id = caller_profile_id and auth_user_id = auth.uid()
+    )
+    or exists (
+      select 1 from public.profiles
+      where id = recipient_profile_id and auth_user_id = auth.uid()
+    )
+  );
+drop policy if exists "Members can call opted-in members" on public.direct_call_invites;
+create policy "Members can call opted-in members"
+  on public.direct_call_invites for insert
+  to authenticated
+  with check (public.can_create_direct_call_invite(caller_profile_id, recipient_profile_id));
+drop policy if exists "Call participants can clear call invitations" on public.direct_call_invites;
+create policy "Call participants can clear call invitations"
+  on public.direct_call_invites for delete
+  to authenticated
+  using (
+    exists (
+      select 1 from public.profiles
+      where id = caller_profile_id and auth_user_id = auth.uid()
+    )
+    or exists (
+      select 1 from public.profiles
+      where id = recipient_profile_id and auth_user_id = auth.uid()
+    )
+  );
 drop policy if exists "Participants can view direct messages" on public.direct_messages;
 create policy "Participants can view direct messages"
   on public.direct_messages for select
@@ -801,7 +872,7 @@ values (
   'community-media',
   false,
   52428800,
-  array['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf', 'video/mp4', 'video/webm']
+  array['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf', 'video/mp4', 'video/webm', 'audio/webm']
 )
 on conflict (id) do update
 set public = false,
@@ -829,6 +900,30 @@ create policy "Members can read community media"
     and (storage.foldername(name))[1] in ('profiles', 'events', 'forum', 'resources')
   );
 
+create or replace function public.can_access_direct_message_media(
+  p_message_id text,
+  p_sender_auth_user_id text
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from public.direct_messages dm
+    join public.profiles sender on sender.id = dm.sender_profile_id
+    join public.profiles recipient on recipient.id = dm.recipient_profile_id
+    where dm.id::text = p_message_id
+      and sender.auth_user_id::text = p_sender_auth_user_id
+      and auth.uid() in (sender.auth_user_id, recipient.auth_user_id)
+  );
+$$;
+
+revoke all on function public.can_access_direct_message_media(text, text) from public, anon;
+grant execute on function public.can_access_direct_message_media(text, text) to authenticated;
+
 drop policy if exists "Message participants can read message attachments" on storage.objects;
 create policy "Message participants can read message attachments"
   on storage.objects for select
@@ -836,14 +931,9 @@ create policy "Message participants can read message attachments"
   using (
     bucket_id = 'community-media'
     and (storage.foldername(name))[1] = 'messages'
-    and exists (
-      select 1
-      from public.direct_messages dm
-      join public.profiles sender on sender.id = dm.sender_profile_id
-      join public.profiles recipient on recipient.id = dm.recipient_profile_id
-      where dm.id::text = (storage.foldername(name))[2]
-        and sender.auth_user_id::text = (storage.foldername(name))[3]
-        and auth.uid() in (sender.auth_user_id, recipient.auth_user_id)
+    and public.can_access_direct_message_media(
+      (storage.foldername(name))[2],
+      (storage.foldername(name))[3]
     )
   );
 
@@ -916,3 +1006,54 @@ create policy "Members can upload own subscription receipts"
   on storage.objects for insert
   to authenticated
   with check (bucket_id = 'community-media' and (storage.foldername(name))[1] = 'subscriptions' and (storage.foldername(name))[2] = auth.uid()::text);
+
+create or replace function public.can_access_direct_call_room(p_topic text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select p_topic ~ '^direct-call:[0-9a-fA-F-]{36}:[0-9a-fA-F-]{36}$'
+    and exists (
+      select 1
+      from public.profiles first_member
+      join public.profiles second_member
+        on second_member.id::text = split_part(p_topic, ':', 3)
+      where first_member.id::text = split_part(p_topic, ':', 2)
+        and first_member.id < second_member.id
+        and auth.uid() in (first_member.auth_user_id, second_member.auth_user_id)
+        and (first_member.show_profile or second_member.show_profile)
+        and (first_member.allow_dm or second_member.allow_dm)
+    );
+$$;
+
+revoke all on function public.can_access_direct_call_room(text) from public, anon;
+grant execute on function public.can_access_direct_call_room(text) to authenticated;
+
+drop policy if exists "Conversation members can receive call signals" on realtime.messages;
+create policy "Conversation members can receive call signals"
+  on realtime.messages for select
+  to authenticated
+  using (public.can_access_direct_call_room(realtime.topic()));
+
+drop policy if exists "Conversation members can send call signals" on realtime.messages;
+create policy "Conversation members can send call signals"
+  on realtime.messages for insert
+  to authenticated
+  with check (public.can_access_direct_call_room(realtime.topic()));
+
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime')
+    and not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime'
+        and schemaname = 'public'
+        and tablename = 'direct_call_invites'
+    )
+  then
+    execute 'alter publication supabase_realtime add table public.direct_call_invites';
+  end if;
+end;
+$$;
