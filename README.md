@@ -50,7 +50,12 @@ The workflow in `.github/workflows/pages.yml` publishes the contents of `src/` w
 5. In Supabase, open **Authentication → URL Configuration**. Set **Site URL** to the deployed website root, and add the exact deployed `login.html` URL as an allowed redirect URL. For a project site, this will look like `https://OWNER.github.io/REPOSITORY/login.html`; for a user or organization site, it will look like `https://OWNER.github.io/login.html`.
 6. Test the public homepage, sign-in, and password-reset flow from the deployed URL before inviting members.
 
-The repository must be connected to GitHub and pushed before the workflow can deploy. The working folder used during development was not connected to a Git repository, so deployment still requires pushing these files to the intended GitHub repository.
+The workflow deploys changes from the connected repository's `main` branch after they are committed and pushed.
+
+### Install the site as a desktop app
+After GitHub Pages finishes deploying, open the website in Microsoft Edge or Google Chrome on a Windows PC or laptop and select **Install app** near the bottom-right of the page. Confirm the browser prompt. The app then opens in its own window and can be pinned to Start or the taskbar.
+
+If the browser does not offer the install prompt, use **Install this site as an app** from Edge's **Settings and more → Apps** menu, or Chrome's **Customize and control → Cast, save, and share → Install page as app** menu. The site needs an internet connection for member pages and messages; the installed app shows an offline notice when disconnected.
 
 ## Supabase Setup
 Database-backed pages use the Supabase project configured in `src/js/supabase-config.js`. When applying database updates, run the latest `supabase/schema.sql` in that project's Supabase SQL Editor. The schema includes event RSVPs, forum moderation reports, private messages, resource-library entries, connection requests, notifications, subscription-payment review, and row-level security policies. The private `community-media` Storage bucket supports member and applicant profile photos, direct-message and forum attachments, event media, and resource files. Upload size is limited to 50 MB (profile photos to 5 MB) and access is controlled by Storage policies; direct-message attachments are available only to the conversation participants.

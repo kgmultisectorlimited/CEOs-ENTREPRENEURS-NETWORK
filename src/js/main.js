@@ -1,6 +1,38 @@
 document.addEventListener('DOMContentLoaded', function () {
   const menuToggle = document.querySelector('.menu-toggle');
   const header = document.querySelector('.site-header');
+  let installPromptEvent = null;
+  const isStandaloneApp = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./service-worker.js')
+      .catch((error) => console.error('KG CEC Network app setup failed:', error));
+  }
+  if (!isStandaloneApp) {
+    const installButton = document.createElement('button');
+    installButton.type = 'button';
+    installButton.className = 'btn btn-primary pwa-install-button';
+    installButton.textContent = 'Install app';
+    installButton.setAttribute('aria-label', 'Install KG CEOs and Entrepreneurs Network as a desktop app');
+    document.body.append(installButton);
+    window.addEventListener('beforeinstallprompt', (event) => {
+      event.preventDefault();
+      installPromptEvent = event;
+    });
+    window.addEventListener('appinstalled', () => {
+      installPromptEvent = null;
+      installButton.remove();
+    });
+    installButton.addEventListener('click', async () => {
+      if (!installPromptEvent) {
+        window.alert('To install this app in Microsoft Edge, open Settings and more (…) → Apps → Install this site as an app. In Google Chrome, open Customize and control Google Chrome (⋮) → Cast, save, and share → Install page as app.');
+        return;
+      }
+      await installPromptEvent.prompt();
+      const choice = await installPromptEvent.userChoice;
+      if (choice.outcome === 'accepted') installButton.remove();
+      installPromptEvent = null;
+    });
+  }
   const yearNode = document.getElementById('year');
   const form = document.getElementById('membershipForm');
   const formStatus = document.getElementById('formStatus');
