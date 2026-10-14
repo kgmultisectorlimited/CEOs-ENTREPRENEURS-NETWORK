@@ -96,7 +96,7 @@
         currentRole: result.profile.current_role,
         company: result.profile.company,
         location: result.profile.location,
-        linkedin: result.profile.linkedin,
+        whatsappContact: result.profile.whatsapp_contact,
         bio: result.profile.bio
       };
       Object.entries(fieldValues).forEach(([name, value]) => {
@@ -109,6 +109,7 @@
         mentionsReplies: result.profile.mentions_replies,
         newForumActivity: result.profile.new_forum_activity,
         showProfile: result.profile.show_profile,
+        showWhatsApp: result.profile.show_whatsapp,
         allowDm: result.profile.allow_dm,
         showNetworkSuggestions: result.profile.show_network_suggestions
       };

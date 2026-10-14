@@ -12,6 +12,7 @@ create table if not exists public.applications (
   years_in_business integer not null default 0,
   website text,
   linkedin text,
+  whatsapp_contact text,
   why_join text,
   contribute text,
   gain text,
@@ -24,6 +25,7 @@ create table if not exists public.applications (
 );
 alter table public.applications
   add column if not exists auth_user_id uuid unique references auth.users(id) on delete set null;
+alter table public.applications add column if not exists whatsapp_contact text;
 
 create table if not exists public.profiles (
   id uuid primary key default gen_random_uuid(),
@@ -35,6 +37,7 @@ create table if not exists public.profiles (
   phone text,
   location text,
   linkedin text,
+  whatsapp_contact text,
   bio text,
   role text not null default 'member' check (role in ('member', 'admin')),
   weekly_digest boolean not null default true,
@@ -42,6 +45,7 @@ create table if not exists public.profiles (
   mentions_replies boolean not null default true,
   new_forum_activity boolean not null default false,
   show_profile boolean not null default true,
+  show_whatsapp boolean not null default false,
   allow_dm boolean not null default true,
   show_network_suggestions boolean not null default false,
   created_at timestamptz not null default now(),
@@ -52,11 +56,13 @@ alter table public.profiles add column if not exists auth_user_id uuid unique re
 alter table public.profiles add column if not exists role text not null default 'member';
 alter table public.profiles add column if not exists "current_role" text;
 alter table public.profiles add column if not exists phone text;
+alter table public.profiles add column if not exists whatsapp_contact text;
 alter table public.profiles add column if not exists weekly_digest boolean not null default true;
 alter table public.profiles add column if not exists event_reminders boolean not null default true;
 alter table public.profiles add column if not exists mentions_replies boolean not null default true;
 alter table public.profiles add column if not exists new_forum_activity boolean not null default false;
 alter table public.profiles add column if not exists show_profile boolean not null default true;
+alter table public.profiles add column if not exists show_whatsapp boolean not null default false;
 alter table public.profiles add column if not exists allow_dm boolean not null default true;
 alter table public.profiles add column if not exists show_network_suggestions boolean not null default false;
 alter table public.profiles add column if not exists profile_photo text;
@@ -494,7 +500,8 @@ create index if not exists idx_notifications_user_category_unread
 create or replace view public.member_directory
 with (security_invoker = false)
 as
-  select id, full_name, "current_role", company, location, linkedin, bio, allow_dm, profile_photo
+  select id, full_name, "current_role", company, location, linkedin, bio, allow_dm, profile_photo,
+    case when show_whatsapp then whatsapp_contact else null end as whatsapp_contact
   from public.profiles
   where show_profile = true;
 
@@ -558,7 +565,7 @@ begin
     company,
     phone,
     location,
-    linkedin
+    whatsapp_contact
   )
   values (
     new.id,
@@ -568,7 +575,7 @@ begin
     approved_application.company,
     approved_application.phone,
     approved_application.location,
-    approved_application.linkedin
+    approved_application.whatsapp_contact
   );
 
   update public.applications

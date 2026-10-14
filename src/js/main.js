@@ -773,7 +773,7 @@ document.addEventListener('DOMContentLoaded', function () {
               ['Industry', application.industry],
               ['Years in business', application.years_in_business],
               ['Website', application.website],
-              ['LinkedIn', application.linkedin],
+              ['WhatsApp contact', application.whatsapp_contact],
               ['Why join', application.why_join],
               ['Can contribute', application.contribute],
               ['Hopes to gain', application.gain],
@@ -784,7 +784,21 @@ document.addEventListener('DOMContentLoaded', function () {
               const term = document.createElement('dt');
               term.textContent = label;
               const description = document.createElement('dd');
-              description.textContent = String(value);
+              if (label === 'WhatsApp contact') {
+                const whatsappDigits = String(value).replace(/\D/g, '');
+                if (whatsappDigits.length >= 7 && whatsappDigits.length <= 15) {
+                  const link = document.createElement('a');
+                  link.href = `https://wa.me/${whatsappDigits}`;
+                  link.target = '_blank';
+                  link.rel = 'noopener noreferrer';
+                  link.textContent = String(value);
+                  description.append(link);
+                } else {
+                  description.textContent = String(value);
+                }
+              } else {
+                description.textContent = String(value);
+              }
               fields.append(term, description);
             });
             if (application.profile_photo_url) {
@@ -2583,13 +2597,14 @@ async function loadMemberDirectory() {
               actions.append(message);
             }
           }
-          if (member.linkedin) {
+          const whatsappDigits = String(member.whatsapp_contact || '').replace(/\D/g, '');
+          if (whatsappDigits.length >= 7 && whatsappDigits.length <= 15) {
             const link = document.createElement('a');
             link.className = 'btn btn-primary';
-            link.href = member.linkedin.startsWith('http') ? member.linkedin : `https://${member.linkedin}`;
+            link.href = `https://wa.me/${whatsappDigits}`;
             link.target = '_blank';
             link.rel = 'noopener noreferrer';
-            link.textContent = 'View LinkedIn';
+            link.textContent = 'WhatsApp';
             actions.append(link);
           }
           body.append(name, role, company, facts, bio, actions);
@@ -3327,7 +3342,7 @@ async function loadMemberDirectory() {
           currentRole: payload.currentRole,
           company: payload.company,
           location: payload.location,
-          linkedin: payload.linkedin,
+          whatsappContact: payload.whatsappContact,
           bio: payload.bio,
           profilePhoto: payload.profilePhoto,
           weeklyDigest: payload.weeklyDigest === 'on',
@@ -3335,6 +3350,7 @@ async function loadMemberDirectory() {
           mentionsReplies: payload.mentionsReplies === 'on',
           newForumActivity: payload.newForumActivity === 'on',
           showProfile: payload.showProfile === 'on',
+          showWhatsApp: payload.showWhatsApp === 'on',
           allowDm: payload.allowDm === 'on',
           showNetworkSuggestions: payload.showNetworkSuggestions === 'on'
         });

@@ -70,6 +70,13 @@
     return typeof File !== 'undefined' && file instanceof File && file.size > 0;
   }
 
+  function isValidWhatsAppContact(value) {
+    const contact = String(value || '').trim();
+    if (!contact) return true;
+    const digits = contact.replace(/\D/g, '');
+    return /^\+?[\d\s().-]+$/.test(contact) && digits.length >= 7 && digits.length <= 15;
+  }
+
   async function uploadMedia(file, path, options = {}) {
     const validation = validateMediaFile(file, options);
     if (validation) throw new Error(validation);
@@ -147,7 +154,7 @@
       industry: payload.industry || '',
       years_in_business: Number(payload.yearsInBusiness || 0),
       website: payload.website || '',
-      linkedin: payload.linkedin || '',
+      whatsapp_contact: String(payload.whatsappContact || payload.whatsapp_contact || '').trim(),
       why_join: payload.whyJoin || '',
       contribute: payload.contribute || '',
       gain: payload.gain || '',
@@ -164,13 +171,14 @@
       current_role: payload.currentRole || payload.current_role || '',
       company: payload.company || '',
       location: payload.location || '',
-      linkedin: payload.linkedin || '',
+      whatsapp_contact: String(payload.whatsappContact || payload.whatsapp_contact || '').trim(),
       bio: payload.bio || '',
       weekly_digest: payload.weeklyDigest ?? true,
       event_reminders: payload.eventReminders ?? true,
       mentions_replies: payload.mentionsReplies ?? true,
       new_forum_activity: payload.newForumActivity ?? false,
       show_profile: payload.showProfile ?? true,
+      show_whatsapp: payload.showWhatsApp ?? false,
       allow_dm: payload.allowDm ?? true,
       show_network_suggestions: payload.showNetworkSuggestions ?? false,
       role: payload.role || 'member',
@@ -181,6 +189,9 @@
   async function submitApplication(payload) {
     const normalized = normalizeApplication(payload);
 
+    if (!normalized.whatsapp_contact || !isValidWhatsAppContact(normalized.whatsapp_contact)) {
+      return { success: false, message: 'Enter a valid WhatsApp contact with country code (7 to 15 digits).' };
+    }
     if (!client) {
       return { success: false, message: 'Supabase is not configured. Application was not submitted.' };
     }
@@ -370,6 +381,9 @@
       return { success: false, message: currentProfile.error || 'Member profile could not be verified.' };
     }
     const normalized = normalizeProfile({ ...payload, id: user.id, email: user.email });
+    if (!isValidWhatsAppContact(normalized.whatsapp_contact)) {
+      return { success: false, message: 'Enter a valid WhatsApp contact with country code (7 to 15 digits).' };
+    }
     let profilePhotoPath = currentProfile.profile.profile_photo || null;
     let uploadedPhotoPath = null;
     if (isSelectedFile(payload.profilePhoto)) {
@@ -391,7 +405,7 @@
         current_role: normalized.current_role,
         company: normalized.company,
         location: normalized.location,
-        linkedin: normalized.linkedin,
+        whatsapp_contact: normalized.whatsapp_contact,
         bio: normalized.bio,
         profile_photo: profilePhotoPath,
         weekly_digest: normalized.weekly_digest,
@@ -399,6 +413,7 @@
         mentions_replies: normalized.mentions_replies,
         new_forum_activity: normalized.new_forum_activity,
         show_profile: normalized.show_profile,
+        show_whatsapp: normalized.show_whatsapp,
         allow_dm: normalized.allow_dm,
         show_network_suggestions: normalized.show_network_suggestions,
         updated_at: new Date().toISOString()
@@ -584,7 +599,7 @@
     const [applicationsResult, countResult] = await Promise.all([
       client
         .from('applications')
-        .select('id, full_name, email, phone, location, company, position, industry, years_in_business, website, linkedin, why_join, contribute, gain, referral, profile_photo, auth_user_id, status, created_at')
+        .select('id, full_name, email, phone, whatsapp_contact, location, company, position, industry, years_in_business, website, why_join, contribute, gain, referral, profile_photo, auth_user_id, status, created_at')
         .order('created_at', { ascending: false })
         .limit(50),
       client
@@ -609,7 +624,7 @@
 
     const { data, error } = await client
       .from('member_directory')
-      .select('id, full_name, current_role, company, location, linkedin, bio, allow_dm, profile_photo')
+      .select('id, full_name, current_role, company, location, whatsapp_contact, bio, allow_dm, profile_photo')
       .order('full_name', { ascending: true });
     if (error) throw new Error(`Member directory could not be loaded: ${error.message}`);
     return Promise.all((data || []).map(async (member) => ({

@@ -138,8 +138,8 @@
               </label>
 
               <label>
-                <span>LinkedIn</span>
-                <input type="text" name="linkedin" value="" />
+                <span>WhatsApp contact</span>
+                <input type="tel" name="whatsappContact" autocomplete="tel" inputmode="tel" placeholder="+256 7XX XXX XXX" pattern="\+?[0-9() .-]{6,23}" title="Enter a WhatsApp phone number with country code." />
               </label>
             </div>
 
@@ -179,6 +179,11 @@
                   <span>Show profile in members directory</span>
                   <input type="checkbox" name="showProfile" checked />
                 </label>
+                <label class="toggle-row">
+                  <span>Show my WhatsApp contact to members</span>
+                  <input type="checkbox" name="showWhatsApp" />
+                </label>
+                <p class="form-hint">Your WhatsApp contact appears in the directory only when both this setting and profile visibility are enabled.</p>
                 <label class="toggle-row">
                   <span>Allow direct messages from members</span>
                   <input type="checkbox" name="allowDm" checked />
