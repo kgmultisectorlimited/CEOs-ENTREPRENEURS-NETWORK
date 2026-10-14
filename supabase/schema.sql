@@ -599,8 +599,12 @@ as $$
     where caller.id = p_caller_profile_id
       and caller.auth_user_id = auth.uid()
       and caller.id <> recipient.id
-      and recipient.show_profile = true
-      and recipient.allow_dm = true
+      and exists (
+        select 1
+        from public.direct_messages dm
+        where (dm.sender_profile_id = caller.id and dm.recipient_profile_id = recipient.id)
+           or (dm.sender_profile_id = recipient.id and dm.recipient_profile_id = caller.id)
+      )
   );
 $$;
 
@@ -1023,8 +1027,12 @@ as $$
       where first_member.id::text = split_part(p_topic, ':', 2)
         and first_member.id < second_member.id
         and auth.uid() in (first_member.auth_user_id, second_member.auth_user_id)
-        and (first_member.show_profile or second_member.show_profile)
-        and (first_member.allow_dm or second_member.allow_dm)
+        and exists (
+          select 1
+          from public.direct_messages dm
+          where (dm.sender_profile_id = first_member.id and dm.recipient_profile_id = second_member.id)
+             or (dm.sender_profile_id = second_member.id and dm.recipient_profile_id = first_member.id)
+        )
     );
 $$;
 
