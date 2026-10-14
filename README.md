@@ -58,21 +58,17 @@ Database-backed pages use the Supabase project configured in `src/js/supabase-co
 Annual network subscriptions are UGX 50,000 and currently use a manual MTN Mobile Money reference check. Members submit the payer phone number and transaction reference; an administrator must verify the payment before the one-year subscription is marked active. This is not an automatic payment integration or auto-renewal.
 
 ## Membership approval and account setup
-Approving an application does not sign the applicant in. After the invitation function is deployed and email delivery configured, approval sends the applicant an email link to set a password. The database trigger creates the member profile only for an approved application; the applicant confirms their email and chooses a password before signing in. The member count includes linked member profiles.
+Approval does not sign the applicant in. An administrator generates a single-use WhatsApp setup code from the approved application and sends it privately to the applicant. The applicant enters the code, their application email, and a chosen password on `login.html`; the server validates the code and creates a confirmed Auth account. The existing database trigger creates and links the member profile. Codes expire after 15 minutes and are limited to five incorrect attempts. The member count includes linked member profiles.
 
-Enable email signup and email confirmation in Supabase Auth, and ensure the deployed `login.html?account-setup=1` URL is an allowed redirect.
-
-### Automatic approval invitations
-The admin application review sends an account invitation when an application is approved. This uses the `send-member-invitation` Supabase Edge Function, which verifies the caller's admin profile before using the server-side Supabase Auth admin API. Never expose the service-role key in frontend code.
-
-Deploy the function from the repository root after linking the Supabase project with the Supabase CLI:
+Run the latest `supabase/schema.sql`, then run `supabase/whatsapp-setup-codes.sql` once in the Supabase SQL Editor. The auth trigger uses the exact application ID when creating a code-verified account, so duplicate applications with the same email cannot link the account to the wrong application. Deploy both Edge Functions from the repository root after linking the project:
 
 ```powershell
-supabase functions deploy send-member-invitation
+supabase functions deploy create-applicant-whatsapp-code
+supabase functions deploy redeem-applicant-whatsapp-code --no-verify-jwt
 supabase secrets set SITE_URL=https://kgmultisectorlimited.github.io/CEOs-ENTREPRENEURS-NETWORK
 ```
 
-Supabase supplies `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` to Edge Functions. In **Authentication → URL Configuration**, allow the deployed `login.html?account-setup=1` redirect. Configure a reliable SMTP sender in **Authentication → SMTP Settings**; Supabase's default email sender is rate-limited and intended for testing. The invite link opens the site password form; after choosing a password, the applicant is taken to the member dashboard. If an invitation fails after approval, the admin can use **Send account invitation** on the approved application.
+The redemption function intentionally has JWT verification disabled because applicants are not signed in yet; it validates the high-entropy server-hashed code, approved application, expiry, and attempt limit itself. Supabase supplies `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to Edge Functions. Keep the service-role key server-side only. The admin can generate a replacement code if one expires or account activation fails. No email delivery is required for this setup flow.
 
 The site includes Privacy Policy, Terms, and Community Guidelines pages. These operational policy drafts should be reviewed by qualified counsel for the applicable jurisdictions before being treated as complete legal advice.
 

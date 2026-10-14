@@ -80,11 +80,15 @@
             <div class="auth-copy">
               <p class="section-kicker">Application approved</p>
               <h2>Set up your member account</h2>
-              <p>Use the same email address as your approved application. We will email you a confirmation link before you can sign in.</p>
+              <p>Ask the administrator for a one-time WhatsApp setup code. Use the same email as your approved application, enter the code, and choose a password.</p>
             </div>
             <label>
               <span>Application email</span>
               <input type="email" name="email" placeholder="name@example.com" autocomplete="email" required />
+            </label>
+            <label>
+              <span>8-digit WhatsApp setup code</span>
+              <input type="text" name="code" inputmode="numeric" pattern="[0-9]{8}" minlength="8" maxlength="8" autocomplete="one-time-code" required />
             </label>
             <label>
               <span>Create a password</span>
@@ -94,7 +98,7 @@
               <span>Confirm password</span>
               <input type="password" name="confirmPassword" minlength="8" autocomplete="new-password" required />
             </label>
-            <button type="submit" class="btn btn-primary auth-button" id="accountSetupSubmit">Send confirmation email</button>
+            <button type="submit" class="btn btn-primary auth-button" id="accountSetupSubmit">Activate member account</button>
             <div class="form-status auth-status" id="accountSetupStatus" aria-live="polite"></div>
             <button type="button" class="text-button" id="returnToLogin">Return to sign in</button>
           </form>

@@ -257,7 +257,7 @@
     };
   }
 
-  async function signUpApprovedApplicant(payload) {
+  async function redeemApprovedApplicantWhatsAppCode(payload) {
     if (!client) return { success: false, message: 'Supabase is not configured.' };
     const { data: sessionData, error: sessionError } = await client.auth.getSession();
     if (sessionError) return { success: false, message: `Current sign-in status could not be checked: ${sessionError.message}` };
@@ -265,42 +265,54 @@
       return { success: false, message: 'Sign out of the current account before setting up a new member account.' };
     }
     const email = String(payload.email || '').trim().toLowerCase();
+    const code = String(payload.code || '').trim();
     const password = String(payload.password || '');
-    if (!email || !password) {
-      return { success: false, message: 'Enter your application email and choose a password.' };
+    if (!email || !/^\d{8}$/.test(code) || !password) {
+      return { success: false, message: 'Enter your application email, 8-digit WhatsApp code, and password.' };
     }
-    if (password.length < 8) {
-      return { success: false, message: 'Use a password with at least 8 characters.' };
+    if (new TextEncoder().encode(password).length < 8 || new TextEncoder().encode(password).length > 72) {
+      return { success: false, message: 'Use a password between 8 and 72 bytes long.' };
     }
 
-    const emailRedirectTo = new URL('login.html', window.location.href).toString();
-    const { data, error } = await client.auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo }
+    const { data, error } = await client.functions.invoke('redeem-applicant-whatsapp-code', {
+      body: { email, code, password }
     });
     if (error) {
-      const message = /approved membership application|database error saving new user/i.test(error.message)
-        ? 'We could not create the account. Confirm your application is approved, use the same email address, and check whether an account already exists. Contact the administrator if the issue continues.'
-        : `Account setup could not be started: ${error.message}`;
-      return { success: false, message };
+      let detail = error.message;
+      if (error.context instanceof Response) {
+        const responseText = await error.context.clone().text();
+        if (responseText) {
+          try {
+            const responseBody = JSON.parse(responseText);
+            detail = responseBody.error || responseBody.message || responseText;
+          } catch {
+            detail = responseText;
+          }
+        }
+      }
+      return { success: false, message: `Account setup failed: ${detail}` };
     }
-    if (!data.user) {
-      return { success: false, message: 'Account setup could not be confirmed. Please try again.' };
-    }
-    if (!data.session) {
+
+    const { error: signInError } = await client.auth.signInWithPassword({ email, password });
+    if (signInError) {
       return {
         success: true,
-        message: 'Your account request was accepted. Check your email and confirm your address before signing in. If you have not been told your application was approved, contact the administrator.'
+        message: 'Your account is active. Sign in using the email and password you just chose.'
       };
     }
 
     const profileResult = await getCurrentProfile();
-    if (profileResult.error) return { success: false, message: `Account was created, but member profile could not be loaded: ${profileResult.error}` };
-    if (!profileResult.profile) return { success: false, message: 'Account was created, but the approved member profile was not found. Contact the administrator.' };
+    if (profileResult.error) {
+      await client.auth.signOut();
+      return { success: false, message: `Account is active, but member access could not be verified: ${profileResult.error}` };
+    }
+    if (!profileResult.profile) {
+      await client.auth.signOut();
+      return { success: false, message: 'Account is active, but the member profile was not found. Contact the administrator.' };
+    }
     return {
       success: true,
-      message: `Welcome, ${profileResult.profile.full_name}. Your member account is ready.`,
+      message: `Welcome, ${profileResult.profile.full_name}. Your member account is active.`,
       role: profileResult.profile.role
     };
   }
@@ -1176,16 +1188,16 @@
       success: true,
       data,
       message: status === 'approved'
-        ? 'Application approved. Please notify the applicant to set up an account from the login page using this application email.'
+        ? 'Application approved. Generate a WhatsApp setup code and send it privately to the applicant.'
         : 'Application status updated.'
     };
   }
 
-  async function sendApprovedApplicantInvitation(applicationId) {
+  async function createApplicantWhatsAppCode(applicationId) {
     if (!client) return { success: false, message: 'Supabase is not configured.' };
     try {
       await requireAdmin();
-      const { data, error } = await client.functions.invoke('send-member-invitation', {
+      const { data, error } = await client.functions.invoke('create-applicant-whatsapp-code', {
         body: { applicationId }
       });
       if (error) {
@@ -1203,14 +1215,19 @@
           }
           detail = `HTTP ${response.status}: ${detail}`;
         }
-        return { success: false, message: `Invitation email could not be sent: ${detail}` };
+        return { success: false, message: `WhatsApp setup code could not be created: ${detail}` };
+      }
+      if (!/^\d{8}$/.test(data?.code || '') || !data?.expiresAt) {
+        return { success: false, message: 'The setup-code service returned an invalid response. Please try again.' };
       }
       return {
         success: true,
-        message: data?.message || 'Account invitation email sent.'
+        code: data.code,
+        expiresAt: data.expiresAt,
+        message: data?.message || 'Send the code to the applicant using WhatsApp.'
       };
     } catch (error) {
-      return { success: false, message: `Invitation email could not be sent: ${error.message}` };
+      return { success: false, message: `WhatsApp setup code could not be created: ${error.message}` };
     }
   }
 
@@ -1343,7 +1360,7 @@
     client,
     submitApplication,
     signIn,
-    signUpApprovedApplicant,
+    redeemApprovedApplicantWhatsAppCode,
     requestPasswordReset,
     updateAccountPassword,
     getCurrentProfile,
@@ -1374,7 +1391,7 @@
     cancelEvent,
     setEventRsvp,
     updateApplicationStatus,
-    sendApprovedApplicantInvitation,
+    createApplicantWhatsAppCode,
     loadSubscriptionPayments,
     submitSubscriptionPayment,
     loadSubscriptionPaymentReviews,

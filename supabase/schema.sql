@@ -408,6 +408,10 @@ begin
   where lower(email) = lower(new.email)
     and status = 'approved'
     and auth_user_id is null
+    and (
+      new.raw_user_meta_data->>'application_id' is null
+      or id::text = new.raw_user_meta_data->>'application_id'
+    )
   order by updated_at desc, created_at desc
   limit 1
   for update;

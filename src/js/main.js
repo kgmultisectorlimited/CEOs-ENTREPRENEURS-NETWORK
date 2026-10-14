@@ -448,9 +448,9 @@ document.addEventListener('DOMContentLoaded', function () {
         email.textContent = application.email;
         const accountState = document.createElement('small');
         accountState.textContent = application.auth_user_id
-          ? 'Member account: invitation sent or account created'
+          ? 'Member account: created'
           : (application.status === 'approved'
-            ? 'Member account: invitation needed'
+            ? 'Member account: WhatsApp setup code needed'
             : 'Member account: not created');
         details.append(name, business, email, accountState);
 
@@ -478,17 +478,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!update.success) throw new Error(update.message);
             await loadAdminApplications();
             if (status.value === 'approved' && !application.auth_user_id) {
-              const invitation = await window.KGData.sendApprovedApplicantInvitation(application.id);
-              if (!invitation.success) {
-                setStatus(
-                  applicationReviewStatus,
-                  `Application approved, but the invitation could not be sent. Use the invitation button and check Supabase Auth email settings. ${invitation.message}`,
-                  'error'
-                );
-                return;
-              }
-              await loadAdminApplications();
-              setStatus(applicationReviewStatus, invitation.message, 'success');
+              setStatus(applicationReviewStatus, 'Application approved. Generate a WhatsApp setup code below and send it privately to the applicant.', 'success');
             } else {
               setStatus(applicationReviewStatus, update.message, 'success');
             }
@@ -502,14 +492,37 @@ document.addEventListener('DOMContentLoaded', function () {
           const invite = document.createElement('button');
           invite.type = 'button';
           invite.className = 'btn btn-secondary small-btn';
-          invite.textContent = 'Send account invitation';
+          invite.textContent = 'Generate WhatsApp setup code';
           invite.addEventListener('click', async () => {
             invite.disabled = true;
-            setStatus(applicationReviewStatus, `Sending an account invitation to ${application.email}…`);
+            setStatus(applicationReviewStatus, `Creating a one-time setup code for ${application.full_name}…`);
             try {
-              const result = await window.KGData.sendApprovedApplicantInvitation(application.id);
+              const result = await window.KGData.createApplicantWhatsAppCode(application.id);
               if (!result.success) throw new Error(result.message);
-              await loadAdminApplications();
+              details.querySelector('.applicant-whatsapp-code')?.remove();
+              const codePanel = document.createElement('div');
+              codePanel.className = 'applicant-whatsapp-code';
+              const codeLabel = document.createElement('small');
+              codeLabel.textContent = `One-time WhatsApp code (expires ${new Date(result.expiresAt).toLocaleTimeString()}):`;
+              const codeValue = document.createElement('strong');
+              codeValue.textContent = result.code;
+              const copyCode = document.createElement('button');
+              copyCode.type = 'button';
+              copyCode.className = 'text-button';
+              copyCode.textContent = 'Copy code';
+              copyCode.addEventListener('click', async () => {
+                try {
+                  await navigator.clipboard.writeText(result.code);
+                  setStatus(applicationReviewStatus, 'Code copied. Send it privately to the applicant using WhatsApp.', 'success');
+                } catch (error) {
+                  setStatus(applicationReviewStatus, `Code could not be copied: ${error.message}`, 'error');
+                }
+              });
+              const instructions = document.createElement('small');
+              instructions.textContent = `Send this code privately via WhatsApp to ${application.phone || 'the applicant'}. They enter it with their application email and a new password on the login page.`;
+              codePanel.append(codeLabel, codeValue, copyCode, instructions);
+              details.append(codePanel);
+              invite.disabled = false;
               setStatus(applicationReviewStatus, result.message, 'success');
             } catch (error) {
               setStatus(applicationReviewStatus, error.message, 'error');
@@ -2117,13 +2130,20 @@ async function loadMemberDirectory() {
     submit.disabled = true;
     setStatus(accountSetupStatus, 'Checking your approved application and creating your account…');
     try {
-      const result = await window.KGData.signUpApprovedApplicant({
+      const result = await window.KGData.redeemApprovedApplicantWhatsAppCode({
         email: values.email,
+        code: values.code,
         password: values.password
       });
       if (!result.success) throw new Error(result.message);
       accountSetupForm.reset();
-      setStatus(accountSetupStatus, result.message, 'success');
+      if (!result.role) {
+        accountSetupForm.hidden = true;
+        loginForm.hidden = false;
+        setStatus(loginStatus, result.message, 'success');
+      } else {
+        setStatus(accountSetupStatus, result.message, 'success');
+      }
       if (result.role) {
         const nextPage = result.role === 'admin' ? 'admin-dashboard.html' : 'member-dashboard.html';
         setTimeout(() => window.location.replace(nextPage), 900);

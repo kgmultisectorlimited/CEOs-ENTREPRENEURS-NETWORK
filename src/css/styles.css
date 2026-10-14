@@ -2762,6 +2762,23 @@ textarea {
   color: var(--muted);
 }
 
+.applicant-whatsapp-code {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid rgba(15, 90, 192, 0.18);
+  border-radius: 10px;
+  background: rgba(15, 90, 192, 0.04);
+}
+
+.applicant-whatsapp-code strong {
+  color: var(--ink);
+  font-size: 1.2rem;
+  letter-spacing: 0.12em;
+}
+
 .text-button {
   border: 0;
   padding: 0;

@@ -1,0 +1,2 @@
+[functions.redeem-applicant-whatsapp-code]
+verify_jwt = false

@@ -12,10 +12,16 @@ Auth sessions are managed by Supabase. The browser uses the public anon key only
 
 The latest schema also creates the private `community-media` Storage bucket and policies for profile photos, application photos, event/forum/resource uploads, and direct-message attachments restricted to the conversation participants. Run the full latest `schema.sql` in the SQL Editor before using uploads.
 
-Application approval does not sign the applicant in. With the invitation function deployed and email configured, approval sends an account invitation to the applicant. The auth trigger permits account creation only for an approved application, creates the member profile from that application, and associates the Auth user with the application. The email link returns to the password setup screen; the applicant must set their password before signing in. The admin dashboard's member count includes member profiles, not pending applications or admin accounts.
+Application approval does not sign the applicant in. The admin dashboard generates a one-time code for an approved application; the administrator sends it to the applicant privately using WhatsApp. The applicant enters that code, the same application email, and a chosen password on `login.html`. The code expires after 15 minutes, allows at most five incorrect attempts, and is consumed before account creation. Supabase Auth creates a confirmed user server-side, and the existing auth trigger creates and links the member profile.
 
-For this flow, enable email signups and email confirmation under **Authentication → Providers → Email**, and allow the deployed `login.html` URL under **Authentication → URL Configuration**. The admin must contact an approved applicant with these setup instructions; approval alone does not send an invitation.
+Run the latest `schema.sql`, then run `whatsapp-setup-codes.sql` in the Supabase SQL Editor. The updated auth trigger honors the exact application ID supplied by the verified redemption function. From the repository root, link the project and deploy:
 
-For automatic invitations on approval, deploy `functions/send-member-invitation` with the Supabase CLI and set the `SITE_URL` function secret to the deployed website root. Supabase Edge Functions provide `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` server-side; never put the service-role key in website code. Configure custom SMTP under **Authentication → SMTP Settings** for reliable delivery. The Edge Function validates the signed-in admin's profile, verifies the application is approved, and invites the applicant to set their password at `login.html?account-setup=1`. If automatic sending fails, an admin can retry from the approved application row.
+```powershell
+supabase functions deploy create-applicant-whatsapp-code
+supabase functions deploy redeem-applicant-whatsapp-code --no-verify-jwt
+supabase secrets set SITE_URL=https://kgmultisectorlimited.github.io/CEOs-ENTREPRENEURS-NETWORK
+```
+
+The redemption function is public because the applicant has not authenticated yet; it enforces code verification, expiry, one-time use, the approved-application requirement, and attempt limits server-side. If deploying through the Supabase Dashboard, disable **Verify JWT** for `redeem-applicant-whatsapp-code`. Supabase supplies `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to Edge Functions. Never place the service-role key in website code. Email SMTP is not needed for this account-setup flow.
 
 Annual subscriptions are recorded for manual review only. Members submit their MTN Mobile Money transaction reference, and administrators verify payment against the recipient account. No MTN/Airtel merchant API credentials or automatic payment confirmation are used by the static site.
