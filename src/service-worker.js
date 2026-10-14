@@ -1,8 +1,9 @@
-const CACHE_NAME = 'kg-cec-network-shell-v1';
+const CACHE_NAME = 'kg-cec-network-shell-v2';
 const OFFLINE_URL = './offline.html';
 const PRECACHE_URLS = [
   OFFLINE_URL,
   './assets/kg-logo.png',
+  './assets/apple-touch-icon.png',
   './assets/app-icon-192.png',
   './assets/app-icon-512.png',
   './css/styles.css'

@@ -4799,7 +4799,7 @@ textarea {
   }
 
   .app-mobile-shell .site-footer {
-    padding-bottom: 30px;
+    display: none;
   }
 
   .site-header .nav-wrap {
