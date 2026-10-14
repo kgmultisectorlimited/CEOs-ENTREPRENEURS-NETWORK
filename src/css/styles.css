@@ -181,6 +181,10 @@ button {
   box-shadow: 0 8px 26px rgba(8, 17, 31, 0.25);
 }
 
+.app-mobile-nav {
+  display: none;
+}
+
 .menu-toggle {
   display: none;
   width: 44px;
@@ -853,6 +857,10 @@ button {
   border: 1px solid rgba(13, 23, 38, 0.06);
   border-radius: 28px;
   box-shadow: 0 18px 28px rgba(8, 17, 31, 0.03);
+}
+
+.chat-back-button {
+  display: none;
 }
 
 .chat-sidebar {
@@ -4743,6 +4751,57 @@ textarea {
     width: calc(100% - 32px);
   }
 
+  .app-mobile-shell {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+
+  .app-mobile-nav {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 80;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+    border-top: 1px solid rgba(13, 23, 38, 0.08);
+    background: rgba(255, 255, 255, 0.97);
+    box-shadow: 0 -8px 28px rgba(8, 17, 31, 0.08);
+    backdrop-filter: blur(16px);
+  }
+
+  .app-mobile-nav-link {
+    display: flex;
+    min-width: 0;
+    min-height: 50px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    border-radius: 14px;
+    color: #687486;
+    font-size: 0.64rem;
+    font-weight: 600;
+    line-height: 1.1;
+    text-align: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .app-mobile-nav-link svg {
+    width: 22px;
+    height: 22px;
+    flex: 0 0 auto;
+  }
+
+  .app-mobile-nav-link[aria-current="page"] {
+    background: #e8f4ef;
+    color: #08785d;
+    font-weight: 800;
+  }
+
+  .app-mobile-shell .site-footer {
+    padding-bottom: 30px;
+  }
+
   .site-header .nav-wrap {
     min-height: 68px;
     gap: 10px;
@@ -4936,14 +4995,134 @@ textarea {
     min-height: 0;
   }
 
+  .messages-page {
+    padding: 0 0 16px;
+  }
+
+  .messages-page .container {
+    width: 100%;
+  }
+
+  .messages-shell {
+    display: block;
+    min-height: calc(100dvh - 144px);
+  }
+
   .chat-sidebar,
   .chat-panel {
     border-radius: 20px;
   }
 
   .chat-sidebar {
-    max-height: 260px;
-    padding: 16px 14px;
+    max-height: none;
+    padding: 10px 18px 18px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .chat-header-row h2 {
+    font-size: 1.55rem;
+  }
+
+  .chat-list {
+    gap: 0;
+  }
+
+  .chat-item {
+    min-height: 76px;
+    padding: 12px 4px;
+    border-bottom: 1px solid rgba(13, 23, 38, 0.07);
+    border-radius: 0;
+  }
+
+  .chat-panel {
+    display: none;
+  }
+
+  .messages-body.has-active-chat .chat-sidebar {
+    display: none;
+  }
+
+  .messages-body.has-active-chat .chat-panel {
+    display: flex;
+    min-height: calc(100dvh - 144px);
+    flex-direction: column;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .chat-panel-header {
+    min-height: 68px;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(13, 23, 38, 0.08);
+    background: #fff;
+  }
+
+  .chat-back-button {
+    display: inline-flex;
+    width: 36px;
+    height: 40px;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #08785d;
+    font: inherit;
+    font-size: 2rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .chat-person {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .chat-person h3,
+  .chat-person span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .chat-panel-header > .btn {
+    min-height: 36px;
+    padding: 0 10px;
+    font-size: 0.6rem;
+  }
+
+  .chat-panel-header > .btn-secondary {
+    border-color: #dce8e1;
+    background: #f0f5f2;
+    color: #08785d;
+  }
+
+  .chat-thread {
+    flex: 1;
+    min-height: 170px;
+    max-height: none;
+    background: #f2f5f2;
+  }
+
+  .messages-body.has-active-chat .message-composer {
+    margin: 0;
+    border-radius: 0;
+    background: #fff;
+  }
+
+  .chat-back-button:focus-visible,
+  .app-mobile-nav-link:focus-visible {
+    outline: 2px solid #08785d;
+    outline-offset: 2px;
   }
 
   .chat-thread {
@@ -5065,6 +5244,28 @@ textarea {
 
   .quick-actions {
     grid-template-columns: 1fr;
+  }
+
+  .app-mobile-shell .dashboard-sidebar {
+    display: none;
+  }
+
+  .messages-body.has-active-chat .chat-panel-header {
+    min-height: 68px;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .messages-body.has-active-chat .chat-thread {
+    flex: 1;
+    min-height: 170px;
+    max-height: none;
+    overflow-y: auto;
+    background: #f2f5f2;
+  }
+
+  .messages-body.has-active-chat .chat-back-button {
+    display: inline-flex;
   }
 }
 

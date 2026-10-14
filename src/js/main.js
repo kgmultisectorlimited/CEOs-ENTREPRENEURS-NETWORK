@@ -1,6 +1,63 @@
 document.addEventListener('DOMContentLoaded', function () {
-  const menuToggle = document.querySelector('.menu-toggle');
+  let menuToggle = document.querySelector('.menu-toggle');
   const header = document.querySelector('.site-header');
+  const headerNavigation = header?.querySelector('.main-nav');
+  if (!menuToggle && headerNavigation) {
+    menuToggle = document.createElement('button');
+    menuToggle.type = 'button';
+    menuToggle.className = 'menu-toggle';
+    menuToggle.setAttribute('aria-label', 'Toggle navigation');
+    menuToggle.setAttribute('aria-expanded', 'false');
+    menuToggle.innerHTML = '<span></span><span></span><span></span>';
+    headerNavigation.before(menuToggle);
+  }
+
+  const appRole = document.body.dataset.authRole;
+  if (appRole === 'member' || appRole === 'admin') {
+    const memberItems = [
+      { label: 'Home', href: 'member-dashboard.html', path: 'member-dashboard.html', icon: 'M3 10.5 12 3l9 7.5M5.5 9v11h13V9M9 20v-6h6v6' },
+      { label: 'Network', href: 'member-network.html', path: 'member-network.html', icon: 'M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM20 8v6M23 11h-6' },
+      { label: 'Messages', href: 'messages.html', path: 'messages.html', icon: 'M21 11.5a8.5 8.5 0 0 1-12.7 7.4L3 21l2.1-5.3A8.5 8.5 0 1 1 21 11.5Z' },
+      { label: 'Events', href: 'events.html', path: 'events.html', icon: 'M7 3v4M17 3v4M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1ZM8 13h3M8 17h3' },
+      { label: 'Profile', href: 'member-profile.html', path: 'member-profile.html', icon: 'M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z' }
+    ];
+    const adminItems = [
+      { label: 'Home', href: 'admin-dashboard.html', path: 'admin-dashboard.html', icon: 'M3 10.5 12 3l9 7.5M5.5 9v11h13V9M9 20v-6h6v6' },
+      { label: 'Members', href: 'members-directory.html', path: 'members-directory.html', icon: 'M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM20 8v6M23 11h-6' },
+      { label: 'Review', href: 'admin-moderation.html', path: 'admin-moderation.html', icon: 'M9 11l2 2 4-4M5 4h14v17H5zM9 4V2h6v2' },
+      { label: 'Events', href: 'events.html', path: 'events.html', icon: 'M7 3v4M17 3v4M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1ZM8 13h3M8 17h3' },
+      { label: 'Settings', href: 'member-settings.html', path: 'member-settings.html', icon: 'M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.7 2.9-.2-.1a1.7 1.7 0 0 0-1.8.2l-.1.1h-3.4l-.1-.2a1.7 1.7 0 0 0-1.5-1l-.2.1-2.9-1.7.1-.2a1.7 1.7 0 0 0-.2-1.8l-.1-.1v-3.4l.2-.1a1.7 1.7 0 0 0 1-1.5l-.1-.2 1.7-2.9.2.1a1.7 1.7 0 0 0 1.8-.2l.1-.1h3.4l.1.2a1.7 1.7 0 0 0 1.5 1l.2-.1 2.9 1.7-.1.2a1.7 1.7 0 0 0 .2 1.8l.1.1V15Z' }
+    ];
+    const mobileNavigation = document.createElement('nav');
+    mobileNavigation.className = 'app-mobile-nav';
+    mobileNavigation.setAttribute('aria-label', 'App navigation');
+    const currentPath = window.location.pathname.split('/').pop() || 'index.html';
+    (appRole === 'admin' ? adminItems : memberItems).forEach((item) => {
+      const link = document.createElement('a');
+      link.href = item.href;
+      link.className = 'app-mobile-nav-link';
+      link.setAttribute('aria-label', item.label);
+      if (currentPath === item.path) link.setAttribute('aria-current', 'page');
+      const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      icon.setAttribute('viewBox', '0 0 24 24');
+      icon.setAttribute('fill', 'none');
+      icon.setAttribute('stroke', 'currentColor');
+      icon.setAttribute('stroke-width', '1.8');
+      icon.setAttribute('stroke-linecap', 'round');
+      icon.setAttribute('stroke-linejoin', 'round');
+      icon.setAttribute('aria-hidden', 'true');
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', item.icon);
+      icon.append(path);
+      const label = document.createElement('span');
+      label.textContent = item.label;
+      link.append(icon, label);
+      mobileNavigation.append(link);
+    });
+    document.body.classList.add('app-mobile-shell');
+    document.body.append(mobileNavigation);
+  }
+
   let installPromptEvent = null;
   const isStandaloneApp = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   if ('serviceWorker' in navigator) {
@@ -73,6 +130,19 @@ document.addEventListener('DOMContentLoaded', function () {
   const moderationResolvedCount = document.getElementById('moderationResolvedCount');
   const chatList = document.getElementById('chatList');
   const chatThread = document.getElementById('chatThread');
+  const chatPanelHeader = document.querySelector('.chat-panel-header');
+  if (chatPanelHeader) {
+    const backButton = document.createElement('button');
+    backButton.type = 'button';
+    backButton.className = 'chat-back-button';
+    backButton.setAttribute('aria-label', 'Back to conversations');
+    backButton.textContent = '‹';
+    backButton.addEventListener('click', () => {
+      activeMessagePartnerId = null;
+      renderMessages();
+    });
+    chatPanelHeader.prepend(backButton);
+  }
   const messageComposer = document.getElementById('messageComposer');
   const messageStatus = document.getElementById('messageStatus');
   const messageListStatus = document.getElementById('messageListStatus');
@@ -1363,6 +1433,7 @@ function setMemberAvatar(element, photoUrl, name) {
 }
 
 function renderMessages() {
+  document.body.classList.toggle('has-active-chat', Boolean(activeMessagePartnerId));
   if (!chatList || !chatThread || !messageProfile) return;
   const memberById = new Map(messageDirectory.map((member) => [member.id, member]));
   const conversations = new Map();
