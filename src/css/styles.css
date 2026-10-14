@@ -2744,9 +2744,9 @@ textarea {
 
 .application-list li {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
   padding: 14px 0;
   border-top: 1px solid rgba(13, 23, 38, 0.06);
 }
@@ -2756,13 +2756,24 @@ textarea {
 }
 
 .application-row-actions {
-  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding-top: 4px;
+}
+
+.application-review-details {
+  width: 100%;
+  min-width: 0;
+}
+
+.application-detail-list {
+  grid-template-columns: minmax(90px, 0.35fr) minmax(0, 1fr);
+}
+
+.admin-application-row > .application-status-select {
+  justify-self: start;
 }
 
 .application-list li:first-child {
@@ -4518,11 +4529,6 @@ textarea {
   .conversation-item {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .application-list li {
-    grid-template-columns: minmax(0, 1fr);
-    align-items: start;
   }
 
   .conversation-item,

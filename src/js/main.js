@@ -571,8 +571,7 @@ document.addEventListener('DOMContentLoaded', function () {
               review.append(photo);
             }
             review.append(summary, fields);
-            item.append(details, review, status);
-            if (actions.childElementCount) item.append(actions);
+            item.append(details, actions, review, status);
             adminApplicationList.append(item);
       });
       if (!result.applications.length) setStatus(applicationReviewStatus, 'Application list is up to date.');
