@@ -1455,6 +1455,18 @@ button {
   overflow-wrap: anywhere;
 }
 
+@media (max-width: 640px) {
+  .application-detail-list {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .application-detail-list dd {
+    margin-bottom: 8px;
+    overflow-wrap: break-word;
+  }
+}
+
 .community-media-link,
 .community-media-document,
 .forum-post video,

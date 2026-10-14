@@ -491,11 +491,14 @@ document.addEventListener('DOMContentLoaded', function () {
             status.disabled = false;
           }
         });
-        if (application.status === 'approved' && !application.auth_user_id) {
+        if (application.status === 'approved') {
           const invite = document.createElement('button');
           invite.type = 'button';
           invite.className = 'btn btn-secondary small-btn';
-          invite.textContent = 'Generate WhatsApp setup code';
+          invite.textContent = application.auth_user_id
+            ? 'Member account already created'
+            : 'Generate WhatsApp setup code';
+          invite.disabled = Boolean(application.auth_user_id);
           invite.addEventListener('click', async () => {
             invite.disabled = true;
             setStatus(applicationReviewStatus, `Creating a one-time setup code for ${application.full_name}…`);
