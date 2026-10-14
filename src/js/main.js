@@ -1397,7 +1397,7 @@ function renderMessages() {
     sendButton.disabled = true;
     document.getElementById('startAudioCallButton').disabled = true;
     document.getElementById('startVideoCallButton').disabled = true;
-    document.getElementById('recordVoiceMessageButton').disabled = true;
+    document.getElementById('recordVoiceMessageButton').disabled = false;
     return;
   }
   nameNode.textContent = partner.full_name || 'Member';
@@ -1412,7 +1412,7 @@ function renderMessages() {
     ? 'Member messages are private.'
     : 'New conversations are off; this conversation remains open.';
   sendButton.disabled = !(partner.allow_dm || hasExistingConversation);
-  document.getElementById('recordVoiceMessageButton').disabled = !(partner.allow_dm || hasExistingConversation) && !voiceRecorder;
+  document.getElementById('recordVoiceMessageButton').disabled = false;
   document.getElementById('startAudioCallButton').disabled = !hasExistingConversation || Boolean(activeCall);
   document.getElementById('startVideoCallButton').disabled = !hasExistingConversation || Boolean(activeCall);
   chatThread.replaceChildren();

@@ -1010,13 +1010,6 @@ button {
   border-bottom: 1px solid rgba(13, 23, 38, 0.06);
 }
 
-.message-call-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
 .direct-call-panel {
   padding: 14px 20px;
   border-bottom: 1px solid rgba(13, 23, 38, 0.08);
@@ -1168,6 +1161,25 @@ button {
 .message-tool-button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+.message-call-button {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgba(13, 23, 38, 0.12);
+  border-radius: 12px;
+  background: #fff;
+  font: inherit;
+  font-size: 1.08rem;
+  cursor: pointer;
+}
+
+.message-call-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .message-emoji-control {
@@ -4654,10 +4666,6 @@ textarea {
   .chat-panel-header {
     align-items: flex-start;
     flex-direction: column;
-  }
-
-  .message-call-actions {
-    justify-content: flex-start;
   }
 
   .message-composer {

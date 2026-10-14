@@ -73,11 +73,7 @@
                 <span id="activeChatMeta">Your member messages are private.</span>
               </div>
             </div>
-            <div class="message-call-actions">
-              <button class="btn btn-secondary small-btn" type="button" id="startAudioCallButton" disabled>Voice call</button>
-              <button class="btn btn-secondary small-btn" type="button" id="startVideoCallButton" disabled>Video call</button>
-              <a class="btn btn-secondary small-btn" id="activeChatProfile" href="members-directory.html">View member</a>
-            </div>
+            <a class="btn btn-secondary small-btn" id="activeChatProfile" href="members-directory.html">View member</a>
           </div>
 
           <section class="direct-call-panel" id="directCallPanel" hidden aria-label="Member call">
@@ -128,14 +124,16 @@
                 <button type="button" data-message-emoji="✅" aria-label="Check mark">✅</button>
               </div>
             </div>
-            <button class="message-tool-button" type="button" id="recordVoiceMessageButton" aria-label="Record a voice message">🎙️</button>
+            <button class="message-tool-button" type="button" id="recordVoiceMessageButton" aria-label="Record a voice note" title="Record a voice note">🎙️</button>
+            <button class="message-call-button" type="button" id="startAudioCallButton" aria-label="Start voice call" title="Voice call" disabled>📞</button>
+            <button class="message-call-button" type="button" id="startVideoCallButton" aria-label="Start video call" title="Video call" disabled>📹</button>
             <span class="voice-recording-status" id="voiceRecordingStatus" aria-live="polite"></span>
             <label class="message-attachment"><span id="messageAttachmentName">Attach</span>
               <input type="file" name="mediaFile" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,video/mp4,video/webm" aria-label="Attach a photo, document, or video" />
             </label>
             <button type="submit" class="btn btn-primary small-btn" id="sendMessageButton" disabled>Send</button>
           </form>
-          <p class="message-attachment-note">Optional: attach a photo, flyer, PDF, or video (up to 50 MB).</p>
+          <p class="message-attachment-note">Attach a photo, flyer, PDF, or video, or record a voice note (up to 50 MB).</p>
           <p class="form-status" id="newMessageStatus" aria-live="polite"></p>
           <div class="new-message-controls" id="newMessageControls" hidden>
             <label for="newMessageRecipient">Start a conversation</label>
@@ -193,8 +191,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
     <script src="js/supabase-config.js"></script>
-    <script src="js/supabase-client.js"></script>
+    <script src="js/supabase-client.js?v=20261014-call-controls"></script>
     <script src="js/supabase-auth-guard.js"></script>
-    <script src="js/main.js"></script>
+    <script src="js/main.js?v=20261014-call-controls"></script>
   </body>
 </html>
