@@ -13,6 +13,9 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   const appRole = document.body.dataset.authRole;
+  let mobileNavigation = null;
+  let memberNavigationSubscription = null;
+  let navigationCountRefresh = null;
   if (appRole === 'member' || appRole === 'admin') {
     const memberItems = [
       { label: 'Home', href: 'member-dashboard.html', path: 'member-dashboard.html', icon: 'M3 10.5 12 3l9 7.5M5.5 9v11h13V9M9 20v-6h6v6' },
@@ -28,7 +31,7 @@ document.addEventListener('DOMContentLoaded', function () {
       { label: 'Events', href: 'events.html', path: 'events.html', icon: 'M7 3v4M17 3v4M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1ZM8 13h3M8 17h3' },
       { label: 'Settings', href: 'member-settings.html', path: 'member-settings.html', icon: 'M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.7 2.9-.2-.1a1.7 1.7 0 0 0-1.8.2l-.1.1h-3.4l-.1-.2a1.7 1.7 0 0 0-1.5-1l-.2.1-2.9-1.7.1-.2a1.7 1.7 0 0 0-.2-1.8l-.1-.1v-3.4l.2-.1a1.7 1.7 0 0 0 1-1.5l-.1-.2 1.7-2.9.2.1a1.7 1.7 0 0 0 1.8-.2l.1-.1h3.4l.1.2a1.7 1.7 0 0 0 1.5 1l.2-.1 2.9 1.7-.1.2a1.7 1.7 0 0 0 .2 1.8l.1.1V15Z' }
     ];
-    const mobileNavigation = document.createElement('nav');
+    mobileNavigation = document.createElement('nav');
     mobileNavigation.className = 'app-mobile-nav';
     mobileNavigation.setAttribute('aria-label', 'App navigation');
     const currentPath = window.location.pathname.split('/').pop() || 'index.html';
@@ -36,6 +39,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const link = document.createElement('a');
       link.href = item.href;
       link.className = 'app-mobile-nav-link';
+      link.dataset.navLabel = item.label;
       link.setAttribute('aria-label', item.label);
       if (currentPath === item.path) link.setAttribute('aria-current', 'page');
       const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -52,6 +56,15 @@ document.addEventListener('DOMContentLoaded', function () {
       const label = document.createElement('span');
       label.textContent = item.label;
       link.append(icon, label);
+      const badgeKey = { Network: 'network', Messages: 'messages', Events: 'events' }[item.label];
+      if (badgeKey) {
+        const badge = document.createElement('span');
+        badge.className = 'app-mobile-nav-badge';
+        badge.dataset.navBadge = badgeKey;
+        badge.hidden = true;
+        badge.setAttribute('aria-hidden', 'true');
+        link.append(badge);
+      }
       mobileNavigation.append(link);
     });
     document.body.classList.add('app-mobile-shell');
@@ -2096,6 +2109,7 @@ async function loadNotificationInbox() {
     document.getElementById('markAllNotificationsRead').disabled = unread === 0;
     document.getElementById('notificationUnreadCount').textContent = `${unread} unread`;
     renderNotificationInbox();
+    refreshMobileNavigationCounts();
     setStatus(notificationStatus, `${notificationItems.length} notification${notificationItems.length === 1 ? '' : 's'}.`);
   } catch (error) {
     notificationItems = [];
@@ -2149,12 +2163,18 @@ function renderNotificationInbox() {
           return;
         }
         item.unread = false;
+        refreshMobileNavigationCounts();
         document.getElementById('notificationUnreadCount').textContent =
           `${notificationItems.filter((entry) => entry.unread).length} unread`;
         document.getElementById('markAllNotificationsRead').disabled =
           !notificationItems.some((entry) => entry.unread);
       }
-      document.getElementById('notificationDetailType').textContent = 'Notification';
+      document.getElementById('notificationDetailType').textContent = {
+        message: 'Message',
+        connection: 'Network',
+        event: 'Event',
+        conversation: 'Conversation'
+      }[item.category] || 'Notification';
       document.getElementById('notificationDetailTitle').textContent = item.title;
       document.getElementById('notificationDetailBody').textContent = item.body || 'No additional details.';
       const status = document.getElementById('notificationDetailStatus');
@@ -2407,6 +2427,17 @@ async function loadMemberDirectory() {
     yearNode.textContent = new Date().getFullYear();
   }
   document.addEventListener('kg:auth-ready', () => {
+    refreshMobileNavigationCounts();
+    if (!memberNavigationSubscription && window.KGData?.subscribeToMemberNavUpdates) {
+      window.KGData.subscribeToMemberNavUpdates(
+        refreshMobileNavigationCounts,
+        (error) => console.error('Member navigation updates could not be subscribed:', error)
+      ).then((unsubscribe) => {
+        memberNavigationSubscription = unsubscribe;
+      }).catch((error) => {
+        console.error('Member navigation updates could not be subscribed:', error);
+      });
+    }
     loadAdminApplications();
     loadMemberDirectory();
     loadEvents();
@@ -2420,6 +2451,35 @@ async function loadMemberDirectory() {
     loadMemberNetwork();
     loadMemberDashboard();
     loadSubscriptionPage();
+  });
+  async function refreshMobileNavigationCounts() {
+    if (!mobileNavigation || !window.KGData?.loadMemberNavCounts) return;
+    window.clearTimeout(navigationCountRefresh);
+    navigationCountRefresh = window.setTimeout(async () => {
+      try {
+        const counts = await window.KGData.loadMemberNavCounts();
+        Object.entries(counts).forEach(([key, count]) => {
+          const badge = mobileNavigation.querySelector(`[data-nav-badge="${key}"]`);
+          if (!badge) return;
+          const value = Number(count) || 0;
+          badge.textContent = value > 99 ? '99+' : String(value);
+          badge.hidden = value === 0;
+          const link = badge.closest('a');
+          const countDescription = {
+            network: 'pending connection requests',
+            messages: 'unread messages',
+            events: 'new event or conversation notifications'
+          }[key];
+          link?.setAttribute('aria-label', `${link.dataset.navLabel}${value ? `, ${value} ${countDescription}` : ''}`);
+        });
+      } catch (error) {
+        console.error('Member navigation counts could not be loaded:', error);
+      }
+    }, 120);
+  }
+  window.addEventListener('focus', refreshMobileNavigationCounts);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) refreshMobileNavigationCounts();
   });
 
   document.querySelectorAll('[data-forum-topic]').forEach((item) => {
@@ -2496,6 +2556,7 @@ async function loadMemberDirectory() {
       const result = await window.KGData.markNotificationsRead();
       if (!result.success) throw new Error(result.message);
       await loadNotificationInbox();
+      refreshMobileNavigationCounts();
       setStatus(notificationStatus, result.message, 'success');
     } catch (error) {
       setStatus(notificationStatus, error.message, 'error');

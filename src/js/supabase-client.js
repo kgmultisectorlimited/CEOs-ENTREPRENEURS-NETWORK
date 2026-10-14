@@ -956,7 +956,7 @@
     if (!user) throw new Error('Sign in to view notifications.');
     const { data, error } = await client
       .from('notifications')
-      .select('id, title, body, unread, created_at')
+      .select('id, title, body, unread, created_at, category')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
     if (error) throw new Error(`Notifications could not be loaded: ${error.message}`);
@@ -975,6 +975,88 @@
     const { error } = await query;
     if (error) return { success: false, message: `Notifications could not be updated: ${error.message}` };
     return { success: true, message: 'Notifications marked as read.' };
+  }
+
+  async function loadMemberNavCounts() {
+    if (!client) throw new Error('Supabase is not configured.');
+    const { data: { user }, error: userError } = await client.auth.getUser();
+    if (userError) throw new Error(`Your session could not be checked: ${userError.message}`);
+    if (!user) throw new Error('Sign in to view member updates.');
+    const { data: profile, error: profileError } = await client
+      .from('profiles')
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .maybeSingle();
+    if (profileError) throw new Error(`Your member profile could not be loaded: ${profileError.message}`);
+    if (!profile) throw new Error('Your member profile could not be found.');
+    const [connectionsResult, messagesResult, eventsResult] = await Promise.all([
+      client.from('connection_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('recipient_profile_id', profile.id)
+        .eq('status', 'requested'),
+      client.from('direct_messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('recipient_profile_id', profile.id)
+        .is('read_at', null),
+      client.from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('unread', true)
+        .in('category', ['event', 'conversation'])
+    ]);
+    const errors = [
+      ['connection requests', connectionsResult.error],
+      ['messages', messagesResult.error],
+      ['event and conversation notifications', eventsResult.error]
+    ].filter(([, error]) => error);
+    if (errors.length) {
+      throw new Error(`Unread counts could not be loaded (${errors.map(([name, error]) => `${name}: ${error.message}`).join('; ')}).`);
+    }
+    return {
+      network: connectionsResult.count || 0,
+      messages: messagesResult.count || 0,
+      events: eventsResult.count || 0
+    };
+  }
+
+  async function subscribeToMemberNavUpdates(onUpdate, onError) {
+    if (!client) throw new Error('Supabase is not configured.');
+    const { data: { user }, error: userError } = await client.auth.getUser();
+    if (userError) throw new Error(`Your session could not be checked: ${userError.message}`);
+    if (!user) throw new Error('Sign in to receive member updates.');
+    const { data: profile, error: profileError } = await client
+      .from('profiles')
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .maybeSingle();
+    if (profileError) throw new Error(`Your member profile could not be loaded: ${profileError.message}`);
+    if (!profile) throw new Error('Your member profile could not be found.');
+    if (typeof onUpdate !== 'function') throw new Error('A member update callback is required.');
+    const channel = client.channel(`member-nav-updates:${user.id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${user.id}`
+      }, onUpdate)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'direct_messages',
+        filter: `recipient_profile_id=eq.${profile.id}`
+      }, onUpdate)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'connection_requests',
+        filter: `recipient_profile_id=eq.${profile.id}`
+      }, onUpdate)
+      .subscribe((status, error) => {
+        if (['CHANNEL_ERROR', 'TIMED_OUT'].includes(status)) {
+          onError?.(error || new Error(`Member update subscription status: ${status}`));
+        }
+      });
+    return () => client.removeChannel(channel);
   }
 
   async function loadConnectionRequests() {
@@ -1532,6 +1614,8 @@
     saveResource,
     loadNotifications,
     markNotificationsRead,
+    loadMemberNavCounts,
+    subscribeToMemberNavUpdates,
     loadConnectionRequests,
     sendConnectionRequest,
     updateConnectionRequest,
