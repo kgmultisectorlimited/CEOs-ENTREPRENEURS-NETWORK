@@ -18,6 +18,8 @@ For voice notes and one-to-one audio/video calls in Messages, run `message-calls
 
 For an existing project, run `member-notifications.sql` in the SQL Editor to categorize targeted message and connection alerts, notify members when events or community conversations are published, and enable Realtime updates for mobile navigation badges. This migration preserves recipient-only message notifications and applies the notifications table's existing owner-scoped RLS policies. New projects get the same setup from the latest `schema.sql`.
 
+For an existing project, run `event-details-and-attendees.sql` in the SQL Editor to add the administrator-only function used to view the member names, email addresses, and reservation dates for each event. The Events and Conversations pages provide full event/session details, and attendee information is returned only after the database verifies the caller's admin role. New projects get the same function from the latest `schema.sql`.
+
 Application approval does not sign the applicant in. In the admin dashboard's **Applicant account setup** panel, choose an approved application and generate a one-time code; send it privately using WhatsApp. The applicant enters that code, the same application email, and a chosen password on `login.html`. The code expires after 15 minutes, allows at most five incorrect attempts, and is consumed before account creation. Supabase Auth creates a confirmed user server-side, and the existing auth trigger creates and links the member profile.
 
 Run the latest `schema.sql`, then run `whatsapp-setup-codes.sql` in the Supabase SQL Editor. The updated auth trigger honors the exact application ID supplied by the verified redemption function. From the repository root, link the project and deploy:

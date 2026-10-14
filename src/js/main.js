@@ -567,6 +567,11 @@ document.addEventListener('DOMContentLoaded', function () {
       const description = document.createElement('p');
       description.className = 'card-description';
       description.textContent = event.description || 'A curated session for community members.';
+      const detailsButton = document.createElement('button');
+      detailsButton.type = 'button';
+      detailsButton.className = 'btn btn-secondary';
+      detailsButton.textContent = 'View session details';
+      detailsButton.addEventListener('click', () => showEventDetails(event));
       const media = makeMediaNode(event.media_path, event.media_url, `${event.title} session attachment`);
       const info = document.createElement('div');
       info.className = 'card-info-row';
@@ -599,9 +604,50 @@ document.addEventListener('DOMContentLoaded', function () {
 
       card.append(top, title, meta, description);
       if (media) card.append(media);
-      card.append(info, rsvp);
+      card.append(info, detailsButton, rsvp);
       conversationGrid.append(card);
     });
+  }
+
+  function showEventDetails(event) {
+    let dialog = document.getElementById('eventDetailsDialog');
+    if (!dialog) {
+      dialog = document.createElement('dialog');
+      dialog.id = 'eventDetailsDialog';
+      dialog.className = 'event-details-dialog';
+      dialog.setAttribute('aria-labelledby', 'eventDetailsTitle');
+      document.body.append(dialog);
+    }
+    const content = document.createElement('div');
+    content.className = 'event-details-content';
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'btn btn-secondary event-details-close';
+    close.textContent = 'Close';
+    close.addEventListener('click', () => dialog.close());
+    const type = document.createElement('p');
+    type.className = 'section-kicker';
+    type.textContent = event.event_type || 'Community event';
+    const title = document.createElement('h2');
+    title.id = 'eventDetailsTitle';
+    title.textContent = event.title;
+    const date = document.createElement('p');
+    date.className = 'event-date';
+    date.textContent = formatEventDate(event.date);
+    const venue = document.createElement('p');
+    venue.textContent = `Location: ${event.venue || 'To be announced'}`;
+    const description = document.createElement('p');
+    description.className = 'event-details-description';
+    description.textContent = event.description || 'More details will be shared soon.';
+    const registered = document.createElement('p');
+    registered.textContent = `Registered: ${event.rsvp_count || 0}${event.seats_available > 0 ? ` of ${event.seats_available} seats` : ' · no capacity limit'}`;
+    const price = document.createElement('p');
+    price.textContent = `Entry: ${event.price || 'Member session'}`;
+    content.append(close, type, title, date, venue, description, registered, price);
+    const media = makeMediaNode(event.media_path, event.media_url, `${event.title} attachment`);
+    if (media) content.append(media);
+    dialog.replaceChildren(content);
+    if (!dialog.open) dialog.showModal();
   }
 
   async function loadConversationListings() {
@@ -1117,6 +1163,12 @@ async function loadEvents() {
 
       const actions = document.createElement('div');
       actions.className = 'event-actions';
+      const detailsButton = document.createElement('button');
+      detailsButton.type = 'button';
+      detailsButton.className = 'btn btn-secondary';
+      detailsButton.textContent = 'View details';
+      detailsButton.addEventListener('click', () => showEventDetails(event));
+      actions.append(detailsButton);
       if (event.status === 'published') {
         const rsvped = result.rsvpedEventIds.includes(event.id);
         const full = event.seats_available > 0 && event.rsvp_count >= event.seats_available && !rsvped;
@@ -1140,7 +1192,47 @@ async function loadEvents() {
         });
         actions.append(rsvp);
       }
+      let attendeeList = null;
       if (window.KG_IS_ADMIN) {
+        attendeeList = document.createElement('div');
+        attendeeList.className = 'event-attendee-list';
+        attendeeList.setAttribute('aria-live', 'polite');
+        const attendeesButton = document.createElement('button');
+        attendeesButton.type = 'button';
+        attendeesButton.className = 'btn btn-secondary';
+        attendeesButton.textContent = `View attendees (${event.rsvp_count || 0})`;
+        attendeesButton.addEventListener('click', async () => {
+          attendeesButton.disabled = true;
+          attendeeList.replaceChildren();
+          setStatus(attendeeList, 'Loading reserved seats…');
+          try {
+            const attendees = await window.KGData.loadEventRsvpAttendees(event.id);
+            if (!attendees.length) {
+              setStatus(attendeeList, 'No members have reserved seats yet.');
+              return;
+            }
+            const heading = document.createElement('h4');
+            heading.textContent = `Reserved seats (${attendees.length})`;
+            const list = document.createElement('ul');
+            attendees.forEach((attendee) => {
+              const entry = document.createElement('li');
+              const name = document.createElement('strong');
+              name.textContent = attendee.full_name || 'Member';
+              const email = document.createElement('span');
+              email.textContent = attendee.email || '';
+              const reserved = document.createElement('small');
+              reserved.textContent = `Reserved ${formatEventDate(attendee.reserved_at)}`;
+              entry.append(name, email, reserved);
+              list.append(entry);
+            });
+            attendeeList.replaceChildren(heading, list);
+          } catch (error) {
+            setStatus(attendeeList, error.message, 'error');
+          } finally {
+            attendeesButton.disabled = false;
+          }
+        });
+        actions.append(attendeesButton);
         const edit = document.createElement('button');
         edit.type = 'button';
         edit.className = 'btn btn-secondary';
@@ -1183,6 +1275,7 @@ async function loadEvents() {
         }
       }
       content.append(actions);
+      if (window.KG_IS_ADMIN) content.append(attendeeList);
       card.append(image, content);
       eventListing.append(card);
     });

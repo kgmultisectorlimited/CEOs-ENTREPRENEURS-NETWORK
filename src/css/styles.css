@@ -1804,6 +1804,96 @@ button {
   letter-spacing: -0.04em;
 }
 
+.event-details-dialog {
+  width: min(680px, calc(100% - 28px));
+  max-width: 680px;
+  max-height: min(86vh, 760px);
+  padding: 0;
+  border: 0;
+  border-radius: 22px;
+  color: var(--ink);
+  box-shadow: 0 24px 80px rgba(8, 17, 31, 0.28);
+}
+
+.event-details-dialog::backdrop {
+  background: rgba(8, 17, 31, 0.58);
+  backdrop-filter: blur(3px);
+}
+
+.event-details-content {
+  display: grid;
+  gap: 12px;
+  padding: 28px;
+}
+
+.event-details-content h2,
+.event-details-content p {
+  margin: 0;
+}
+
+.event-details-content h2 {
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  overflow-wrap: anywhere;
+}
+
+.event-details-content .event-date {
+  color: #b95517;
+  font-weight: 700;
+}
+
+.event-details-description {
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.event-details-close {
+  justify-self: end;
+}
+
+.event-details-content .community-media-link img,
+.event-details-content video {
+  max-height: 320px;
+  border-radius: 14px;
+  object-fit: contain;
+}
+
+.event-attendee-list {
+  grid-column: 1 / -1;
+  padding: 14px;
+  border: 1px solid rgba(13, 23, 38, 0.1);
+  border-radius: 14px;
+  background: #fffaf5;
+}
+
+.event-attendee-list h4 {
+  margin: 0 0 10px;
+}
+
+.event-attendee-list ul {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.event-attendee-list li {
+  display: grid;
+  gap: 3px;
+  overflow-wrap: anywhere;
+  padding-top: 10px;
+  border-top: 1px solid rgba(13, 23, 38, 0.08);
+}
+
+.event-attendee-list li:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.event-attendee-list li small {
+  color: var(--muted);
+}
+
 .event-date {
   margin: 0 0 12px;
   color: var(--muted);
@@ -1963,6 +2053,11 @@ button {
 .conversation-card.featured {
   background: linear-gradient(180deg, #fffaf4 0%, #fff 100%);
   border-color: rgba(241, 178, 74, 0.2);
+}
+
+.conversation-card > .btn {
+  width: 100%;
+  margin-top: 12px;
 }
 
 .card-topline {

@@ -1394,6 +1394,16 @@
     return { success: true, message: attending ? 'You are registered for this event.' : 'Your RSVP has been cancelled.' };
   }
 
+  async function loadEventRsvpAttendees(eventId) {
+    if (!client) throw new Error('Supabase is not configured.');
+    if (!eventId) throw new Error('Choose an event to view reserved seats.');
+    const { data, error } = await client.rpc('admin_event_rsvp_attendees', {
+      p_event_id: eventId
+    });
+    if (error) throw new Error(`Reserved seats could not be loaded: ${error.message}`);
+    return data || [];
+  }
+
   async function updateApplicationStatus(applicationId, status) {
     const allowedStatuses = ['pending', 'review', 'approved', 'rejected'];
     if (!allowedStatuses.includes(status)) {
@@ -1626,6 +1636,7 @@
     saveEvent,
     cancelEvent,
     setEventRsvp,
+    loadEventRsvpAttendees,
     updateApplicationStatus,
     createApplicantWhatsAppCode,
     loadSubscriptionPayments,
