@@ -56,6 +56,9 @@ document.addEventListener('DOMContentLoaded', function () {
   const adminApplicationList = document.getElementById('adminApplicationList');
   const pendingApplicationCount = document.getElementById('pendingApplicationCount');
   const applicationReviewStatus = document.getElementById('applicationReviewStatus');
+  const approvedApplicantSelect = document.getElementById('approvedApplicantSelect');
+  const generateApplicantCodeButton = document.getElementById('generateApplicantCodeButton');
+  const applicantSetupCodeResult = document.getElementById('applicantSetupCodeResult');
   const memberDirectoryGrid = document.getElementById('memberDirectoryGrid');
   const memberSearch = document.getElementById('memberSearch');
   const directoryStatus = document.getElementById('directoryStatus');
@@ -430,6 +433,28 @@ document.addEventListener('DOMContentLoaded', function () {
     try {
       const result = await window.KGData.loadApplications();
       pendingApplicationCount.textContent = String(result.pendingCount);
+      if (approvedApplicantSelect) {
+        const eligibleApplications = result.applications.filter(
+          (application) => application.status === 'approved' && !application.auth_user_id
+        );
+        approvedApplicantSelect.replaceChildren();
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = eligibleApplications.length
+          ? 'Select an approved applicant'
+          : 'No approved applicants need an account';
+        approvedApplicantSelect.append(placeholder);
+        eligibleApplications.forEach((application) => {
+          const option = document.createElement('option');
+          option.value = application.id;
+          option.textContent = `${application.full_name} — ${application.email}`;
+          approvedApplicantSelect.append(option);
+        });
+        approvedApplicantSelect.disabled = eligibleApplications.length === 0;
+        if (generateApplicantCodeButton) {
+          generateApplicantCodeButton.disabled = true;
+        }
+      }
       adminApplicationList.replaceChildren();
       if (!result.applications.length) {
         const empty = document.createElement('li');
@@ -470,9 +495,6 @@ document.addEventListener('DOMContentLoaded', function () {
           status.append(option);
         });
 
-        const actions = document.createElement('div');
-        actions.className = 'application-row-actions';
-
         status.addEventListener('change', async function () {
           status.disabled = true;
           setStatus(applicationReviewStatus, 'Saving application status…');
@@ -491,52 +513,6 @@ document.addEventListener('DOMContentLoaded', function () {
             status.disabled = false;
           }
         });
-        if (application.status === 'approved') {
-          const invite = document.createElement('button');
-          invite.type = 'button';
-          invite.className = 'btn btn-secondary small-btn';
-          invite.textContent = application.auth_user_id
-            ? 'Member account already created'
-            : 'Generate WhatsApp setup code';
-          invite.disabled = Boolean(application.auth_user_id);
-          invite.addEventListener('click', async () => {
-            invite.disabled = true;
-            setStatus(applicationReviewStatus, `Creating a one-time setup code for ${application.full_name}…`);
-            try {
-              const result = await window.KGData.createApplicantWhatsAppCode(application.id);
-              if (!result.success) throw new Error(result.message);
-              details.querySelector('.applicant-whatsapp-code')?.remove();
-              const codePanel = document.createElement('div');
-              codePanel.className = 'applicant-whatsapp-code';
-              const codeLabel = document.createElement('small');
-              codeLabel.textContent = `One-time WhatsApp code (expires ${new Date(result.expiresAt).toLocaleTimeString()}):`;
-              const codeValue = document.createElement('strong');
-              codeValue.textContent = result.code;
-              const copyCode = document.createElement('button');
-              copyCode.type = 'button';
-              copyCode.className = 'text-button';
-              copyCode.textContent = 'Copy code';
-              copyCode.addEventListener('click', async () => {
-                try {
-                  await navigator.clipboard.writeText(result.code);
-                  setStatus(applicationReviewStatus, 'Code copied. Send it privately to the applicant using WhatsApp.', 'success');
-                } catch (error) {
-                  setStatus(applicationReviewStatus, `Code could not be copied: ${error.message}`, 'error');
-                }
-              });
-              const instructions = document.createElement('small');
-              instructions.textContent = `Send this code privately via WhatsApp to ${application.phone || 'the applicant'}. They enter it with their application email and a new password on the login page.`;
-              codePanel.append(codeLabel, codeValue, copyCode, instructions);
-              details.append(codePanel);
-              invite.disabled = false;
-              setStatus(applicationReviewStatus, result.message, 'success');
-            } catch (error) {
-              setStatus(applicationReviewStatus, error.message, 'error');
-              invite.disabled = false;
-            }
-          });
-          actions.append(invite);
-        }
             const review = document.createElement('details');
             review.className = 'application-review-details';
             review.open = ['pending', 'review'].includes(application.status);
@@ -574,7 +550,7 @@ document.addEventListener('DOMContentLoaded', function () {
               review.append(photo);
             }
             review.append(summary, fields);
-            item.append(details, actions, review, status);
+            item.append(details, review, status);
             adminApplicationList.append(item);
       });
       if (!result.applications.length) setStatus(applicationReviewStatus, 'Application list is up to date.');
@@ -588,6 +564,58 @@ document.addEventListener('DOMContentLoaded', function () {
       setStatus(applicationReviewStatus, error.message, 'error');
     }
   }
+
+  approvedApplicantSelect?.addEventListener('change', () => {
+    if (generateApplicantCodeButton) {
+      generateApplicantCodeButton.disabled = !approvedApplicantSelect.value;
+    }
+  });
+
+  generateApplicantCodeButton?.addEventListener('click', async () => {
+    const applicationId = approvedApplicantSelect?.value;
+    if (!applicationId) {
+      setStatus(applicationReviewStatus, 'Select an approved applicant first.', 'error');
+      return;
+    }
+
+    generateApplicantCodeButton.disabled = true;
+    if (applicantSetupCodeResult) {
+      applicantSetupCodeResult.hidden = true;
+      applicantSetupCodeResult.replaceChildren();
+    }
+    setStatus(applicationReviewStatus, 'Creating a one-time WhatsApp setup code…');
+    try {
+      const result = await window.KGData.createApplicantWhatsAppCode(applicationId);
+      if (!result.success) throw new Error(result.message);
+      if (!applicantSetupCodeResult) throw new Error('The setup-code display is unavailable. Refresh the admin dashboard and try again.');
+
+      const codeLabel = document.createElement('small');
+      codeLabel.textContent = `One-time WhatsApp code (expires ${new Date(result.expiresAt).toLocaleTimeString()}):`;
+      const codeValue = document.createElement('strong');
+      codeValue.textContent = result.code;
+      const copyCode = document.createElement('button');
+      copyCode.type = 'button';
+      copyCode.className = 'text-button';
+      copyCode.textContent = 'Copy code';
+      copyCode.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(result.code);
+          setStatus(applicationReviewStatus, 'Code copied. Send it privately to the applicant using WhatsApp.', 'success');
+        } catch (error) {
+          setStatus(applicationReviewStatus, `Code could not be copied: ${error.message}`, 'error');
+        }
+      });
+      const instructions = document.createElement('small');
+      instructions.textContent = 'Send this code privately via WhatsApp. The applicant must enter it with their approved application email and a new password.';
+      applicantSetupCodeResult.append(codeLabel, codeValue, copyCode, instructions);
+      applicantSetupCodeResult.hidden = false;
+      setStatus(applicationReviewStatus, result.message, 'success');
+    } catch (error) {
+      setStatus(applicationReviewStatus, error.message, 'error');
+    } finally {
+      generateApplicantCodeButton.disabled = !approvedApplicantSelect?.value;
+    }
+  });
 
   async function loadAdminDashboardStats() {
     if (!document.getElementById('adminTotalMembers') || !window.KGData) return;

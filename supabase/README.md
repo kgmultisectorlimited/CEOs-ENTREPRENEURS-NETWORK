@@ -12,7 +12,7 @@ Auth sessions are managed by Supabase. The browser uses the public anon key only
 
 The latest schema also creates the private `community-media` Storage bucket and policies for profile photos, application photos, event/forum/resource uploads, and direct-message attachments restricted to the conversation participants. Run the full latest `schema.sql` in the SQL Editor before using uploads.
 
-Application approval does not sign the applicant in. The admin dashboard generates a one-time code for an approved application; the administrator sends it to the applicant privately using WhatsApp. The applicant enters that code, the same application email, and a chosen password on `login.html`. The code expires after 15 minutes, allows at most five incorrect attempts, and is consumed before account creation. Supabase Auth creates a confirmed user server-side, and the existing auth trigger creates and links the member profile.
+Application approval does not sign the applicant in. In the admin dashboard's **Applicant account setup** panel, choose an approved application and generate a one-time code; send it privately using WhatsApp. The applicant enters that code, the same application email, and a chosen password on `login.html`. The code expires after 15 minutes, allows at most five incorrect attempts, and is consumed before account creation. Supabase Auth creates a confirmed user server-side, and the existing auth trigger creates and links the member profile.
 
 Run the latest `schema.sql`, then run `whatsapp-setup-codes.sql` in the Supabase SQL Editor. The updated auth trigger honors the exact application ID supplied by the verified redemption function. From the repository root, link the project and deploy:
 

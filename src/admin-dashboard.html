@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="css/styles.css?v=whatsapp-code-20261014" />
+    <link rel="stylesheet" href="css/styles.css?v=whatsapp-code-panel-20261014" />
   </head>
   <body class="dashboard-body admin-body" data-auth-role="admin">
     <script>document.documentElement.classList.add('auth-pending');</script>
@@ -122,6 +122,18 @@
               <ul class="application-list" id="adminApplicationList">
                 <li><p>Loading applications…</p></li>
               </ul>
+              <div class="applicant-setup-tools">
+                <h4>Applicant account setup</h4>
+                <p>Select an approved applicant to create a one-time WhatsApp code. Send the code to the applicant privately.</p>
+                <label for="approvedApplicantSelect">Approved applicant</label>
+                <select id="approvedApplicantSelect" disabled>
+                  <option value="">Loading approved applicants…</option>
+                </select>
+                <button class="btn btn-primary" type="button" id="generateApplicantCodeButton" disabled>
+                  Generate WhatsApp setup code
+                </button>
+                <div class="applicant-whatsapp-code" id="applicantSetupCodeResult" hidden></div>
+              </div>
             </article>
           </div>
 
@@ -162,8 +174,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
     <script src="js/supabase-config.js"></script>
-    <script src="js/supabase-client.js?v=whatsapp-code-20261014"></script>
+    <script src="js/supabase-client.js?v=whatsapp-code-panel-20261014"></script>
     <script src="js/supabase-auth-guard.js"></script>
-    <script src="js/main.js?v=whatsapp-code-20261014"></script>
+    <script src="js/main.js?v=whatsapp-code-panel-20261014"></script>
   </body>
 </html>

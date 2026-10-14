@@ -2775,6 +2775,36 @@ textarea {
   width: 100%;
 }
 
+.applicant-setup-tools {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  width: 100%;
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid rgba(15, 90, 192, 0.18);
+  border-radius: 12px;
+  background: rgba(15, 90, 192, 0.04);
+}
+
+.applicant-setup-tools h4,
+.applicant-setup-tools p {
+  margin: 0;
+}
+
+.applicant-setup-tools label {
+  font-weight: 700;
+}
+
+.applicant-setup-tools select {
+  width: min(100%, 520px);
+}
+
+.applicant-setup-tools button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .application-review-details {
   width: 100%;
   min-width: 0;
@@ -2808,6 +2838,10 @@ textarea {
   border: 1px solid rgba(15, 90, 192, 0.18);
   border-radius: 10px;
   background: rgba(15, 90, 192, 0.04);
+}
+
+.applicant-whatsapp-code[hidden] {
+  display: none;
 }
 
 .applicant-whatsapp-code strong {
