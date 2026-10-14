@@ -15,6 +15,8 @@ document.addEventListener('DOMContentLoaded', function () {
   const appRole = document.body.dataset.authRole;
   let mobileNavigation = null;
   let memberNavigationSubscription = null;
+  let memberPresenceSubscription = null;
+  let onlineMemberIds = new Set();
   let navigationCountRefresh = null;
   if (appRole === 'member' || appRole === 'admin') {
     const memberItems = [
@@ -1745,12 +1747,17 @@ function renderMessages() {
     time.textContent = latest ? formatRelativeDate(latest.created_at) : 'New';
     topline.append(name, time);
     const preview = document.createElement('span');
+    preview.className = 'chat-preview';
     preview.textContent = latest?.content || (latest?.media_path
       ? (latest.media_error
         ? 'Attachment unavailable'
         : (latest.media_path.split('/').pop().startsWith('voice-') ? 'Voice message' : 'Attachment'))
       : 'Start a conversation');
-    copy.append(topline, preview);
+    const presence = document.createElement('span');
+    presence.className = 'presence-status';
+    presence.dataset.presenceId = partnerId;
+    presence.textContent = onlineMemberIds.has(partnerId) ? 'Online' : 'Offline';
+    copy.append(topline, preview, presence);
     item.append(avatar, copy);
     item.addEventListener('click', () => openMessageConversation(partnerId));
     chatList.append(item);
@@ -1761,11 +1768,13 @@ function renderMessages() {
   const initialsNode = document.getElementById('activeChatInitials');
   const profileLink = document.getElementById('activeChatProfile');
   const metaNode = document.getElementById('activeChatMeta');
+  const presenceNode = document.getElementById('activeChatPresence');
   const sendButton = document.getElementById('sendMessageButton');
   if (!partner) {
     nameNode.textContent = 'Select a conversation';
     initialsNode.textContent = initialsFor(messageProfile.full_name);
     metaNode.textContent = 'Your member messages are private.';
+    presenceNode.hidden = true;
     profileLink.href = 'members-directory.html';
     chatThread.replaceChildren();
     const prompt = document.createElement('p');
@@ -1775,10 +1784,14 @@ function renderMessages() {
     document.getElementById('startAudioCallButton').disabled = true;
     document.getElementById('startVideoCallButton').disabled = true;
     document.getElementById('recordVoiceMessageButton').disabled = false;
+    updatePresenceIndicators();
     return;
   }
   nameNode.textContent = partner.full_name || 'Member';
   initialsNode.textContent = initialsFor(partner.full_name);
+  presenceNode.dataset.presenceId = partner.id;
+  presenceNode.hidden = false;
+  presenceNode.textContent = onlineMemberIds.has(partner.id) ? 'Online' : 'Offline';
   profileLink.href = 'members-directory.html';
   const threadMessages = directMessages.filter((message) =>
     (message.sender_profile_id === messageProfile.id && message.recipient_profile_id === activeMessagePartnerId) ||
@@ -1823,6 +1836,7 @@ function renderMessages() {
     chatThread.append(bubble);
   });
   chatThread.scrollTop = chatThread.scrollHeight;
+  updatePresenceIndicators();
 }
 
 function setCallPanelState(title, status, controls = {}) {
@@ -1890,6 +1904,14 @@ async function flushDirectCallCandidates(call) {
   for (const candidate of call.pendingCandidates.splice(0)) {
     await call.peer.addIceCandidate(new RTCIceCandidate(candidate));
   }
+}
+
+function updatePresenceIndicators() {
+  document.querySelectorAll('[data-presence-id]').forEach((element) => {
+    const online = onlineMemberIds.has(element.dataset.presenceId);
+    element.dataset.online = String(online);
+    element.textContent = online ? 'Online' : 'Offline';
+  });
 }
 
 async function handleDirectCallSignal(call, payload) {
@@ -2521,6 +2543,10 @@ async function loadMemberDirectory() {
           body.className = 'member-body';
           const name = document.createElement('h3');
           name.textContent = member.full_name || 'Member';
+          const presence = document.createElement('p');
+          presence.className = 'presence-status';
+          presence.dataset.presenceId = member.id;
+          presence.textContent = onlineMemberIds.has(member.id) ? 'Online' : 'Offline';
           const role = document.createElement('p');
           role.className = 'member-role';
           role.textContent = member.current_role || 'Community member';
@@ -2607,10 +2633,11 @@ async function loadMemberDirectory() {
             link.textContent = 'WhatsApp';
             actions.append(link);
           }
-          body.append(name, role, company, facts, bio, actions);
+          body.append(name, presence, role, company, facts, bio, actions);
           card.append(top, body);
           memberDirectoryGrid.append(card);
         });
+        updatePresenceIndicators();
       };
 
       filters.forEach((button) => {
@@ -2658,6 +2685,23 @@ async function loadMemberDirectory() {
   }
   document.addEventListener('kg:auth-ready', () => {
     refreshMobileNavigationCounts();
+    if (!memberPresenceSubscription && window.KGData?.subscribeToMemberPresence) {
+      window.KGData.subscribeToMemberPresence(
+        (profileIds) => {
+          onlineMemberIds = new Set(profileIds);
+          updatePresenceIndicators();
+        },
+        (error) => {
+          onlineMemberIds = new Set();
+          updatePresenceIndicators();
+          console.error('Member online status updates could not be maintained:', error);
+        }
+      ).then((subscription) => {
+        memberPresenceSubscription = subscription;
+      }).catch((error) => {
+        console.error('Member online status could not be subscribed:', error);
+      });
+    }
     if (!memberNavigationSubscription && window.KGData?.subscribeToMemberNavUpdates) {
       window.KGData.subscribeToMemberNavUpdates(
         refreshMobileNavigationCounts,

@@ -24,6 +24,8 @@ For an existing project, run `community-submissions.sql` in the SQL Editor to le
 
 For an existing project, run `whatsapp-contact.sql` in the SQL Editor before deploying the updated membership application and profile settings. It adds WhatsApp contact fields, updates the member directory view, and ensures approved applicants' WhatsApp details are copied into their member profile. WhatsApp contacts are hidden from the member directory by default; members must explicitly enable **Show my WhatsApp contact to members**, and their profile must also be listed.
 
+For an existing project, run `member-presence.sql` in the SQL Editor before deploying online/offline indicators. It authorizes the private Realtime presence channel for authenticated members, while only profiles listed in the member directory share their online status. Presence shares profile IDs only and is displayed beside members already visible in Messages and the directory.
+
 Application approval does not sign the applicant in. In the admin dashboard's **Applicant account setup** panel, choose an approved application and generate a one-time code; send it privately using WhatsApp. The applicant enters that code, the same application email, and a chosen password on `login.html`. The code expires after 15 minutes, allows at most five incorrect attempts, and is consumed before account creation. Supabase Auth creates a confirmed user server-side, and the existing auth trigger creates and links the member profile.
 
 Run the latest `schema.sql`, then run `whatsapp-setup-codes.sql` in the Supabase SQL Editor. The updated auth trigger honors the exact application ID supplied by the verified redemption function. From the repository root, link the project and deploy:

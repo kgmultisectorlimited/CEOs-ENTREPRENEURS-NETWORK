@@ -976,13 +976,38 @@ button {
   white-space: nowrap;
 }
 
-.chat-item-copy > span:last-child {
+.chat-item-copy > .chat-preview {
   display: block;
   overflow: hidden;
   color: var(--muted);
   font-size: 0.76rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.presence-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.presence-status::before {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: #9ca3af;
+  content: "";
+}
+
+.presence-status[data-online="true"] {
+  color: #16834b;
+}
+
+.presence-status[data-online="true"]::before {
+  background: #20a464;
 }
 
 .new-message-controls {
@@ -2543,6 +2568,10 @@ button {
   margin: 0 0 6px;
   font-size: 1.45rem;
   letter-spacing: -0.03em;
+}
+
+.member-body .presence-status {
+  margin: -4px 0 8px;
 }
 
 .member-role,

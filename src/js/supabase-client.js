@@ -774,6 +774,76 @@
     };
   }
 
+  async function subscribeToMemberPresence(onUpdate, onError) {
+    if (!client) throw new Error('Supabase is not configured.');
+    const profileResult = await getCurrentProfile();
+    if (profileResult.error) throw new Error(profileResult.error);
+    if (!profileResult.profile) throw new Error('Sign in again to share online status.');
+
+    const profile = profileResult.profile;
+    const channel = client.channel('member-presence', {
+      config: { private: true, presence: { key: profile.id } }
+    }).on('presence', { event: 'sync' }, () => {
+      onUpdate(Object.keys(channel.presenceState()));
+    });
+
+    try {
+      await new Promise((resolve, reject) => {
+        let settled = false;
+        let tracking = false;
+        const timeout = window.setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          reject(new Error('Online status could not connect. Please refresh and try again.'));
+        }, 10000);
+        channel.subscribe((status, error) => {
+          if (status === 'SUBSCRIBED' && !tracking) {
+            tracking = true;
+            const trackPresence = profile.show_profile
+              ? channel.track({ profileId: profile.id }).then((trackStatus) => {
+                if (trackStatus !== 'ok') throw new Error(trackStatus);
+              })
+              : Promise.resolve();
+            trackPresence.then(() => {
+              if (settled) return;
+              settled = true;
+              window.clearTimeout(timeout);
+              resolve();
+            }).catch((trackError) => {
+              tracking = false;
+              if (settled) {
+                onUpdate([]);
+                onError(new Error(`Online status could not be shared: ${trackError.message}`));
+                return;
+              }
+              settled = true;
+              window.clearTimeout(timeout);
+              reject(new Error(`Online status could not be shared: ${trackError.message}`));
+            });
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            const connectionError = new Error(`Online status could not connect: ${error?.message || status}`);
+            tracking = false;
+            if (settled) {
+              onUpdate([]);
+              onError(connectionError);
+              return;
+            }
+            settled = true;
+            window.clearTimeout(timeout);
+            reject(connectionError);
+          }
+        });
+      });
+    } catch (error) {
+      await client.removeChannel(channel);
+      throw error;
+    }
+
+    return {
+      close: () => client.removeChannel(channel)
+    };
+  }
+
   async function subscribeToDirectCallInbox(profileId, onSignal) {
     const profileResult = await getCurrentProfile();
     if (profileResult.error) throw new Error(profileResult.error);
@@ -1814,6 +1884,7 @@
     loadDirectMessages,
     sendDirectMessage,
     markDirectMessagesRead,
+    subscribeToMemberPresence,
     subscribeToDirectCallInbox,
     openDirectCallChannel,
     sendDirectCallInvite,
