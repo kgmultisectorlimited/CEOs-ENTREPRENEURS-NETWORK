@@ -52,6 +52,9 @@ document.addEventListener('DOMContentLoaded', function () {
   let networkMembers = [];
   let networkRequests = [];
   let networkProfile = null;
+  let directoryRequests = [];
+  let directoryProfile = null;
+  let refreshMemberDirectory = null;
   let activeNetworkFilter = 'all';
   const adminApplicationList = document.getElementById('adminApplicationList');
   const pendingApplicationCount = document.getElementById('pendingApplicationCount');
@@ -1737,7 +1740,12 @@ async function loadMemberDirectory() {
     memberDirectoryGrid.replaceChildren();
     setStatus(directoryStatus, 'Loading member directory…');
     try {
-      const members = await window.KGData.loadMemberDirectory();
+      const [members, relationshipData] = await Promise.all([
+        window.KGData.loadMemberDirectory(),
+        window.KGData.loadConnectionRequests()
+      ]);
+      directoryRequests = relationshipData.requests;
+      directoryProfile = relationshipData.profile;
       memberDirectoryGrid.replaceChildren();
       if (!members.length) {
         setStatus(directoryStatus, 'No members have chosen to appear in the directory yet.');
@@ -1804,6 +1812,65 @@ async function loadMemberDirectory() {
           bio.textContent = member.bio || 'This member has not added a biography yet.';
           const actions = document.createElement('div');
           actions.className = 'member-actions';
+          if (member.id !== directoryProfile.id) {
+            const relationship = directoryRequests.find((request) =>
+              (request.requester_profile_id === member.id && request.recipient_profile_id === directoryProfile.id) ||
+              (request.recipient_profile_id === member.id && request.requester_profile_id === directoryProfile.id)
+            );
+            if (relationship?.status === 'accepted') {
+              const connected = document.createElement('span');
+              connected.className = 'verified-tag';
+              connected.textContent = 'Connected';
+              actions.append(connected);
+            } else if (relationship?.status === 'requested' && relationship.recipient_profile_id === directoryProfile.id) {
+              const accept = document.createElement('button');
+              accept.type = 'button';
+              accept.className = 'btn btn-primary small-btn';
+              accept.textContent = 'Accept request';
+              accept.addEventListener('click', () => updateDirectoryConnection(relationship.id, 'accepted'));
+              const decline = document.createElement('button');
+              decline.type = 'button';
+              decline.className = 'btn btn-secondary small-btn';
+              decline.textContent = 'Decline';
+              decline.addEventListener('click', () => updateDirectoryConnection(relationship.id, 'declined'));
+              actions.append(accept, decline);
+            } else if (relationship?.status === 'requested') {
+              const sent = document.createElement('span');
+              sent.textContent = 'Request sent';
+              const withdraw = document.createElement('button');
+              withdraw.type = 'button';
+              withdraw.className = 'btn btn-secondary small-btn';
+              withdraw.textContent = 'Withdraw';
+              withdraw.addEventListener('click', () => updateDirectoryConnection(relationship.id, 'withdrawn'));
+              actions.append(sent, withdraw);
+            } else {
+              const connect = document.createElement('button');
+              connect.type = 'button';
+              connect.className = 'btn btn-secondary small-btn';
+              connect.textContent = 'Connect';
+              connect.addEventListener('click', async () => {
+                connect.disabled = true;
+                try {
+                  const result = await window.KGData.sendConnectionRequest(member.id);
+                  if (!result.success) throw new Error(result.message);
+                  await refreshMemberDirectory?.();
+                  setStatus(directoryStatus, result.message, 'success');
+                } catch (error) {
+                  setStatus(directoryStatus, error.message, 'error');
+                  connect.disabled = false;
+                }
+              });
+              actions.append(connect);
+            }
+
+            if (member.allow_dm) {
+              const message = document.createElement('a');
+              message.className = 'btn btn-primary small-btn';
+              message.href = `messages.html?to=${encodeURIComponent(member.id)}`;
+              message.textContent = 'Message';
+              actions.append(message);
+            }
+          }
           if (member.linkedin) {
             const link = document.createElement('a');
             link.className = 'btn btn-primary';
@@ -1831,9 +1898,30 @@ async function loadMemberDirectory() {
         });
       });
       memberSearch?.addEventListener('input', renderMembers);
+      refreshMemberDirectory = async () => {
+        const [updatedMembers, updatedRelationships] = await Promise.all([
+          window.KGData.loadMemberDirectory(),
+          window.KGData.loadConnectionRequests()
+        ]);
+        members.splice(0, members.length, ...updatedMembers);
+        directoryRequests = updatedRelationships.requests;
+        directoryProfile = updatedRelationships.profile;
+        renderMembers();
+      };
       renderMembers();
     } catch (error) {
       memberDirectoryGrid.replaceChildren();
+      setStatus(directoryStatus, error.message, 'error');
+    }
+  }
+
+  async function updateDirectoryConnection(requestId, status) {
+    try {
+      const result = await window.KGData.updateConnectionRequest(requestId, status);
+      if (!result.success) throw new Error(result.message);
+      await refreshMemberDirectory?.();
+      setStatus(directoryStatus, result.message, 'success');
+    } catch (error) {
       setStatus(directoryStatus, error.message, 'error');
     }
   }
