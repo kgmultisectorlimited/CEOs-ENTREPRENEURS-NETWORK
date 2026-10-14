@@ -1067,6 +1067,49 @@ button {
   font-size: 0.76rem;
 }
 
+.direct-call-privacy-note summary {
+  width: fit-content;
+  color: #516076;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.direct-call-privacy-note p {
+  max-width: 640px;
+  margin: 8px 0 0;
+  line-height: 1.55;
+}
+
+.app-install-help {
+  width: min(440px, calc(100% - 32px));
+  padding: 26px;
+  border: 1px solid rgba(13, 23, 38, 0.1);
+  border-radius: 22px;
+  color: var(--ink);
+  box-shadow: 0 24px 70px rgba(8, 17, 31, 0.3);
+}
+
+.app-install-help::backdrop {
+  background: rgba(5, 11, 20, 0.65);
+}
+
+.app-install-help h2 {
+  margin: 0 0 10px;
+  font-size: 1.4rem;
+  line-height: 1.2;
+}
+
+.app-install-help p {
+  color: var(--muted);
+}
+
+.app-install-help ol {
+  display: grid;
+  gap: 10px;
+  padding-left: 22px;
+  margin: 18px 0 22px;
+}
+
 .direct-call-media {
   display: flex;
   align-items: center;

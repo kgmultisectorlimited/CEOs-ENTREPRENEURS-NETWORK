@@ -99,7 +99,10 @@
               <button class="btn btn-secondary small-btn" type="button" id="toggleCallCameraButton" hidden>Turn camera off</button>
               <button class="btn btn-primary small-btn" type="button" id="hangupCallButton" hidden>End call</button>
             </div>
-            <p class="direct-call-privacy-note">Calls use WebRTC; your network address may be visible to the other participant and the STUN service.</p>
+            <details class="direct-call-privacy-note">
+              <summary>Call privacy</summary>
+              <p>Calls are encrypted in transit. Because the call connects devices directly, the person you call and Google's connection service may be able to see your public network address.</p>
+            </details>
           </section>
 
           <p class="form-status" id="messageStatus" aria-live="polite"></p>

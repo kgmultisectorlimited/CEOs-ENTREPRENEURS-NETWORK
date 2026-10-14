@@ -75,6 +75,53 @@ document.addEventListener('DOMContentLoaded', function () {
       installButtonHost.classList.add('has-install-button');
     }
     installButtonHost.append(installButton);
+    const installHelp = document.createElement('dialog');
+    installHelp.className = 'app-install-help';
+    installHelp.setAttribute('aria-labelledby', 'appInstallHelpTitle');
+    const installTitle = document.createElement('h2');
+    installTitle.id = 'appInstallHelpTitle';
+    const installDescription = document.createElement('p');
+    const installSteps = document.createElement('ol');
+    const installClose = document.createElement('button');
+    installClose.type = 'button';
+    installClose.className = 'btn btn-primary small-btn';
+    installClose.textContent = 'Got it';
+    installClose.addEventListener('click', () => installHelp.close());
+    installHelp.append(installTitle, installDescription, installSteps, installClose);
+    document.body.append(installHelp);
+    const showInstallHelp = () => {
+      const userAgent = window.navigator.userAgent;
+      const isAppleMobile = /iPhone|iPad|iPod/i.test(userAgent) ||
+        (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
+      const isAndroid = /Android/i.test(userAgent);
+      const steps = isAppleMobile
+        ? [
+            'Open this page in Safari (not an in-app browser).',
+            'Tap Share, then choose Add to Home Screen.',
+            'Leave the app name as KG CEC NETWORK and tap Add.'
+          ]
+        : isAndroid
+          ? [
+              'Open this page in Chrome.',
+              'Tap the ⋮ menu, then choose Install app or Add to Home screen.',
+              'Confirm the prompt to add KG CEC NETWORK to your phone.'
+            ]
+          : [
+              'Open this website in your browser menu.',
+              'Choose Install app or Add to Home screen and confirm.'
+            ];
+      installTitle.textContent = isAppleMobile ? 'Add KG CEC NETWORK to your Home Screen' : 'Install KG CEC NETWORK';
+      installDescription.textContent = isAppleMobile
+        ? 'Follow these steps to add the app to your iPhone or iPad.'
+        : 'Follow these steps to install the app on your device.';
+      installSteps.replaceChildren(...steps.map((step) => {
+        const item = document.createElement('li');
+        item.textContent = step;
+        return item;
+      }));
+      if (typeof installHelp.showModal === 'function') installHelp.showModal();
+      else window.alert(`${installTitle.textContent}\n${steps.join('\n')}`);
+    };
     window.addEventListener('beforeinstallprompt', (event) => {
       event.preventDefault();
       installPromptEvent = event;
@@ -85,13 +132,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     installButton.addEventListener('click', async () => {
       if (!installPromptEvent) {
-        const userAgent = window.navigator.userAgent;
-        const instructions = /iPhone|iPad|iPod/i.test(userAgent)
-          ? 'To add this app on iPhone or iPad, open this website in Safari, tap Share, then choose Add to Home Screen.'
-          : /Android/i.test(userAgent)
-            ? 'To install this app on Android, open this website in Chrome, tap the ⋮ menu, then choose Install app or Add to Home screen.'
-            : 'To install this app in Microsoft Edge, open Settings and more (…) → Apps → Install this site as an app. In Google Chrome, open Customize and control Google Chrome (⋮) → Cast, save, and share → Install page as app.';
-        window.alert(instructions);
+        showInstallHelp();
         return;
       }
       try {
@@ -102,7 +143,7 @@ document.addEventListener('DOMContentLoaded', function () {
       } catch (error) {
         console.error('KG CEC Network app installation failed:', error);
         installPromptEvent = null;
-        window.alert('The browser could not open the install prompt. Open the browser menu and choose Install app or Add to Home screen.');
+        showInstallHelp();
       }
     });
   }
