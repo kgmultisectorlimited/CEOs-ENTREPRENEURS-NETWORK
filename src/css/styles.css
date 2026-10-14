@@ -4735,10 +4735,6 @@ textarea {
     overflow-x: hidden;
   }
 
-  .pwa-install-button {
-    display: none;
-  }
-
   body {
     font-size: 15px;
   }
@@ -4752,9 +4748,25 @@ textarea {
     gap: 10px;
   }
 
+  .site-header .nav-wrap .pwa-install-button {
+    position: static;
+    display: inline-flex;
+    flex: 0 0 auto;
+    min-height: 40px;
+    margin-left: auto;
+    padding: 0 10px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    box-shadow: none;
+  }
+
   .brand-logo {
     width: min(170px, 52vw);
     height: 54px;
+  }
+
+  .site-header .nav-wrap.has-install-button .menu-toggle {
+    margin-left: 0;
   }
 
   .site-header.is-open .main-nav,
@@ -5055,6 +5067,19 @@ textarea {
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 360px) {
+  .site-header .nav-wrap.has-install-button .brand-logo {
+    width: max(88px, calc(100vw - 232px));
+    height: 48px;
+  }
+
+  .site-header .nav-wrap .pwa-install-button {
+    padding: 0 8px;
+    font-size: 0.7rem;
+  }
+}
+
 .auth-pending body {
   visibility: hidden;
 }

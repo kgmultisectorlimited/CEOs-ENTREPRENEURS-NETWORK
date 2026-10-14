@@ -12,8 +12,12 @@ document.addEventListener('DOMContentLoaded', function () {
     installButton.type = 'button';
     installButton.className = 'btn btn-primary pwa-install-button';
     installButton.textContent = 'Install app';
-    installButton.setAttribute('aria-label', 'Install KG CEOs and Entrepreneurs Network as a desktop app');
-    document.body.append(installButton);
+    installButton.setAttribute('aria-label', 'Install KG CEOs and Entrepreneurs Network');
+    const installButtonHost = document.querySelector('.site-header .nav-wrap') || document.body;
+    if (installButtonHost.matches('.site-header .nav-wrap')) {
+      installButtonHost.classList.add('has-install-button');
+    }
+    installButtonHost.append(installButton);
     window.addEventListener('beforeinstallprompt', (event) => {
       event.preventDefault();
       installPromptEvent = event;
@@ -24,13 +28,25 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     installButton.addEventListener('click', async () => {
       if (!installPromptEvent) {
-        window.alert('To install this app in Microsoft Edge, open Settings and more (…) → Apps → Install this site as an app. In Google Chrome, open Customize and control Google Chrome (⋮) → Cast, save, and share → Install page as app.');
+        const userAgent = window.navigator.userAgent;
+        const instructions = /iPhone|iPad|iPod/i.test(userAgent)
+          ? 'To add this app on iPhone or iPad, open this website in Safari, tap Share, then choose Add to Home Screen.'
+          : /Android/i.test(userAgent)
+            ? 'To install this app on Android, open this website in Chrome, tap the ⋮ menu, then choose Install app or Add to Home screen.'
+            : 'To install this app in Microsoft Edge, open Settings and more (…) → Apps → Install this site as an app. In Google Chrome, open Customize and control Google Chrome (⋮) → Cast, save, and share → Install page as app.';
+        window.alert(instructions);
         return;
       }
-      await installPromptEvent.prompt();
-      const choice = await installPromptEvent.userChoice;
-      if (choice.outcome === 'accepted') installButton.remove();
-      installPromptEvent = null;
+      try {
+        await installPromptEvent.prompt();
+        const choice = await installPromptEvent.userChoice;
+        if (choice.outcome === 'accepted') installButton.remove();
+        installPromptEvent = null;
+      } catch (error) {
+        console.error('KG CEC Network app installation failed:', error);
+        installPromptEvent = null;
+        window.alert('The browser could not open the install prompt. Open the browser menu and choose Install app or Add to Home screen.');
+      }
     });
   }
   const yearNode = document.getElementById('year');

@@ -57,6 +57,8 @@ After GitHub Pages finishes deploying, open the website in Microsoft Edge or Goo
 
 If the browser does not offer the install prompt, use **Install this site as an app** from Edge's **Settings and more → Apps** menu, or Chrome's **Customize and control → Cast, save, and share → Install page as app** menu. The site needs an internet connection for member pages and messages; the installed app shows an offline notice when disconnected.
 
+On Android, open the website in Chrome and choose **Install app** or **Add to Home screen** from the browser menu. On iPhone or iPad, open it in Safari, tap **Share**, then choose **Add to Home Screen**.
+
 ## Supabase Setup
 Database-backed pages use the Supabase project configured in `src/js/supabase-config.js`. When applying database updates, run the latest `supabase/schema.sql` in that project's Supabase SQL Editor. The schema includes event RSVPs, forum moderation reports, private messages, resource-library entries, connection requests, notifications, subscription-payment review, and row-level security policies. The private `community-media` Storage bucket supports member and applicant profile photos, direct-message and forum attachments, event media, and resource files. Upload size is limited to 50 MB (profile photos to 5 MB) and access is controlled by Storage policies; direct-message attachments are available only to the conversation participants.
 
