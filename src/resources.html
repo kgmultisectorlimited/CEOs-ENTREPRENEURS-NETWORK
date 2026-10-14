@@ -68,6 +68,34 @@
       </section>
 
       <section class="container resource-shell">
+        <section class="panel-card-wide resource-submit-panel">
+          <div class="panel-header-row">
+            <div>
+              <p class="section-kicker alt-kicker">Share with members</p>
+              <h2>Suggest a resource</h2>
+              <p>Submissions are reviewed by an administrator before they appear in the library.</p>
+            </div>
+          </div>
+          <form id="resourceSubmissionForm">
+            <div class="form-grid">
+              <label><span>Title</span><input name="title" required maxlength="180" /></label>
+              <label><span>Category</span><input name="category" required maxlength="80" placeholder="Leadership, Finance…" /></label>
+              <label class="full-width"><span>Summary</span><textarea name="summary" rows="2" required maxlength="1500"></textarea></label>
+              <label class="full-width"><span>Resource content (optional if you add a secure link)</span><textarea name="content" rows="5" maxlength="20000"></textarea></label>
+              <label class="full-width"><span>HTTPS resource link (optional if you add content)</span><input name="resourceUrl" type="url" placeholder="https://…" /></label>
+              <label class="full-width">
+                <span>Attachment (optional)</span>
+                <input type="file" name="mediaFile" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,video/mp4,video/webm" />
+                <small>JPG, PNG, WebP, GIF, PDF, MP4, or WebM; maximum 50 MB.</small>
+              </label>
+            </div>
+            <div class="form-actions">
+              <button type="reset" class="btn btn-secondary">Clear form</button>
+              <button type="submit" class="btn btn-primary" id="resourceSubmissionSubmit">Submit for review</button>
+            </div>
+            <p id="resourceSubmissionStatus" class="form-status" aria-live="polite"></p>
+          </form>
+        </section>
         <section class="panel-card-wide resource-admin-panel" data-admin-only hidden>
           <div class="panel-header-row">
             <div>

@@ -854,7 +854,7 @@
     if (includeDrafts) await requireAdmin();
     const { data, error } = await client
       .from('resource_library')
-      .select('id, title, category, summary, content, resource_url, media_path, published, created_at, updated_at')
+      .select('id, title, category, summary, content, resource_url, media_path, published, review_status, created_by, created_at, updated_at')
       .order('created_at', { ascending: false });
     if (error) throw new Error(`Resources could not be loaded: ${error.message}`);
     return withSignedMedia(data, 'media_path');
@@ -928,7 +928,8 @@
       content: content || null,
       resource_url: resourceUrl || null,
       media_path: mediaPath,
-      published: payload.published === true || payload.published === 'on'
+      published: payload.published === true || payload.published === 'on',
+      review_status: 'approved'
     };
     const query = payload.id
       ? client.from('resource_library').update({ ...record, updated_at: new Date().toISOString() }).eq('id', payload.id)
@@ -947,6 +948,102 @@
     }
     if (uploadedMediaPath && existingMediaPath) await removeMedia(existingMediaPath);
     return { success: true, message: payload.id ? 'Resource updated.' : 'Resource added.' };
+  }
+
+  async function submitResourceForReview(payload) {
+    if (!client) return { success: false, message: 'Supabase is not configured.' };
+    const profileResult = await getCurrentProfile();
+    if (profileResult.error) return { success: false, message: profileResult.error };
+    const profile = profileResult.profile;
+    if (!profile) return { success: false, message: 'Sign in again to submit a resource.' };
+    const title = String(payload.title || '').trim();
+    const category = String(payload.category || '').trim();
+    const summary = String(payload.summary || '').trim();
+    const content = String(payload.content || '').trim();
+    const resourceUrl = String(payload.resourceUrl || '').trim();
+    const mediaFile = isSelectedFile(payload.mediaFile) ? payload.mediaFile : null;
+    if (!title || !category || !summary || (!content && !resourceUrl && !mediaFile)) {
+      return { success: false, message: 'Title, category, summary, and resource content, a link, or an attachment are required.' };
+    }
+    if (title.length > 180 || category.length > 80 || summary.length > 1500 || content.length > 20000) {
+      return { success: false, message: 'A resource field is longer than its allowed limit.' };
+    }
+    if (resourceUrl) {
+      let parsedUrl;
+      try {
+        parsedUrl = new URL(resourceUrl);
+      } catch {
+        return { success: false, message: 'Enter a valid link beginning with https://.' };
+      }
+      if (parsedUrl.protocol !== 'https:') {
+        return { success: false, message: 'Resource links must use https://.' };
+      }
+    }
+
+    let mediaPath = null;
+    if (mediaFile) {
+      try {
+        mediaPath = await uploadMedia(
+          mediaFile,
+          `resources/${profile.auth_user_id}/${safeFileName(mediaFile)}`
+        );
+      } catch (error) {
+        return { success: false, message: error.message };
+      }
+    }
+    const { data, error } = await client.from('resource_library').insert([{
+      title,
+      category,
+      summary,
+      content: content || null,
+      resource_url: resourceUrl || null,
+      media_path: mediaPath,
+      published: false,
+      review_status: 'pending',
+      created_by: profile.auth_user_id
+    }]).select('id').maybeSingle();
+    if (error || !data) {
+      const message = error
+        ? `Resource could not be submitted: ${error.message}`
+        : 'Resource submission was not saved.';
+      if (mediaPath) {
+        try {
+          await removeMedia(mediaPath);
+        } catch (cleanupError) {
+          return { success: false, message: `${message} The uploaded attachment could not be cleaned up: ${cleanupError.message}` };
+        }
+      }
+      return { success: false, message };
+    }
+    return { success: true, message: 'Resource submitted for administrator review.' };
+  }
+
+  async function reviewResourceSubmission(resourceId, decision) {
+    if (!client) return { success: false, message: 'Supabase is not configured.' };
+    if (!['approved', 'rejected'].includes(decision)) {
+      return { success: false, message: 'Choose an approve or reject decision.' };
+    }
+    try {
+      await requireAdmin();
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+    const { data, error } = await client.from('resource_library')
+      .update({
+        review_status: decision,
+        published: decision === 'approved',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', resourceId)
+      .eq('review_status', 'pending')
+      .select('id')
+      .maybeSingle();
+    if (error) return { success: false, message: `Resource review could not be saved: ${error.message}` };
+    if (!data) return { success: false, message: 'This resource is no longer pending review.' };
+    return {
+      success: true,
+      message: decision === 'approved' ? 'Resource approved and published.' : 'Resource submission rejected.'
+    };
   }
 
   async function loadNotifications() {
@@ -1364,6 +1461,92 @@
     return { success: true, event: data, message: payload.id ? 'Event updated.' : 'Event created.' };
   }
 
+  async function submitEventRequest(payload) {
+    if (!client) return { success: false, message: 'Supabase is not configured.' };
+    const profileResult = await getCurrentProfile();
+    if (profileResult.error) return { success: false, message: profileResult.error };
+    const profile = profileResult.profile;
+    if (!profile) return { success: false, message: 'Sign in again to request an event.' };
+    const title = String(payload.title || '').trim();
+    const eventType = String(payload.eventType || '').trim() || 'Community event';
+    const venue = String(payload.venue || '').trim();
+    const dateValue = payload.date ? new Date(payload.date) : null;
+    const seatsAvailable = Number(payload.seatsAvailable || 0);
+    const description = String(payload.description || '').trim();
+    const price = String(payload.price || '').trim();
+    if (!title || !venue || !dateValue || Number.isNaN(dateValue.getTime())) {
+      return { success: false, message: 'Event title, date, and venue are required.' };
+    }
+    if (dateValue <= new Date()) {
+      return { success: false, message: 'Choose a future date and time for the proposed event.' };
+    }
+    if (!Number.isInteger(seatsAvailable) || seatsAvailable < 0) {
+      return { success: false, message: 'Capacity must be zero (unlimited) or a positive whole number.' };
+    }
+    if (title.length > 140 || eventType.length > 80 || venue.length > 180 || description.length > 1500 || price.length > 80) {
+      return { success: false, message: 'An event request field is longer than its allowed limit.' };
+    }
+    const { error } = await client.from('event_submissions').insert([{
+      requester_profile_id: profile.id,
+      title,
+      event_type: eventType,
+      description: description || null,
+      date: dateValue.toISOString(),
+      venue,
+      seats_available: seatsAvailable,
+      price: price || null
+    }]);
+    if (error) return { success: false, message: `Event request could not be submitted: ${error.message}` };
+    return { success: true, message: 'Event request sent to the administrators for review.' };
+  }
+
+  async function loadEventSubmissions() {
+    if (!client) throw new Error('Supabase is not configured.');
+    await requireAdmin();
+    const { data, error } = await client.from('event_submissions')
+      .select('id, title, event_type, description, date, venue, seats_available, price, created_at, profiles(full_name, email)')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true });
+    if (error) throw new Error(`Event requests could not be loaded: ${error.message}`);
+    return data || [];
+  }
+
+  async function loadMyEventSubmissions() {
+    if (!client) throw new Error('Supabase is not configured.');
+    const profileResult = await getCurrentProfile();
+    if (profileResult.error) throw new Error(profileResult.error);
+    if (!profileResult.profile) throw new Error('Sign in to view your event requests.');
+    const { data, error } = await client.from('event_submissions')
+      .select('id, title, event_type, date, venue, status, created_at')
+      .eq('requester_profile_id', profileResult.profile.id)
+      .order('created_at', { ascending: false });
+    if (error) throw new Error(`Your event requests could not be loaded: ${error.message}`);
+    return data || [];
+  }
+
+  async function reviewEventSubmission(submissionId, decision) {
+    if (!client) return { success: false, message: 'Supabase is not configured.' };
+    if (!['approved', 'rejected'].includes(decision)) {
+      return { success: false, message: 'Choose an approve or reject decision.' };
+    }
+    try {
+      await requireAdmin();
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+    const { error } = await client.rpc('review_event_submission', {
+      p_submission_id: submissionId,
+      p_decision: decision
+    });
+    if (error) return { success: false, message: `Event request review failed: ${error.message}` };
+    return {
+      success: true,
+      message: decision === 'approved'
+        ? 'Event request approved and published.'
+        : 'Event request rejected.'
+    };
+  }
+
   async function cancelEvent(eventId) {
     if (!client) return { success: false, message: 'Supabase is not configured.' };
     try {
@@ -1622,6 +1805,8 @@
     deleteDirectCallInvite,
     loadResources,
     saveResource,
+    submitResourceForReview,
+    reviewResourceSubmission,
     loadNotifications,
     markNotificationsRead,
     loadMemberNavCounts,
@@ -1634,6 +1819,10 @@
     loadMemberDashboardStats,
     loadEvents,
     saveEvent,
+    submitEventRequest,
+    loadEventSubmissions,
+    loadMyEventSubmissions,
+    reviewEventSubmission,
     cancelEvent,
     setEventRsvp,
     loadEventRsvpAttendees,

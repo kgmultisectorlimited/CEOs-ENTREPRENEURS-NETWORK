@@ -68,6 +68,36 @@
       </section>
 
       <section class="container event-shell">
+        <section class="panel-card-wide event-request-panel">
+          <div class="panel-header-row">
+            <div>
+              <p class="section-kicker alt-kicker">Propose an event</p>
+              <h2>Request an event or session</h2>
+              <p>Your proposal will be reviewed by an administrator before it is published.</p>
+            </div>
+          </div>
+          <form id="eventRequestForm">
+            <div class="form-grid">
+              <label><span>Event title</span><input name="title" required maxlength="140" /></label>
+              <label><span>Event type</span><input name="eventType" required maxlength="80" placeholder="Roundtable, Masterclass…" /></label>
+              <label><span>Date and time</span><input name="date" type="datetime-local" required /></label>
+              <label><span>Venue or meeting link</span><input name="venue" required maxlength="180" /></label>
+              <label><span>Suggested capacity (0 = unlimited)</span><input name="seatsAvailable" type="number" min="0" step="1" value="0" required /></label>
+              <label><span>Price / entry</span><input name="price" maxlength="80" placeholder="Free entry, UGX 50,000…" /></label>
+              <label class="full-width"><span>Description</span><textarea name="description" rows="3" maxlength="1500"></textarea></label>
+            </div>
+            <div class="form-actions">
+              <button type="reset" class="btn btn-secondary">Clear form</button>
+              <button type="submit" class="btn btn-primary" id="eventRequestSubmit">Send event request</button>
+            </div>
+            <p id="eventRequestStatus" class="form-status" aria-live="polite"></p>
+          </form>
+          <div class="my-event-submissions">
+            <h3>My event requests</h3>
+            <p id="myEventSubmissionsStatus" class="form-status" aria-live="polite">Loading your requests…</p>
+            <div id="myEventSubmissionsList"></div>
+          </div>
+        </section>
         <section class="panel-card-wide event-admin-panel" data-admin-only hidden>
           <div class="panel-header-row">
             <div>
@@ -119,6 +149,11 @@
               <button type="submit" class="btn btn-primary" id="eventFormSubmit">Create event</button>
             </div>
           </form>
+          <div class="event-submission-review">
+            <h3>Member event requests</h3>
+            <p id="eventSubmissionsStatus" class="form-status" aria-live="polite">Loading requests…</p>
+            <div id="eventSubmissionsList"></div>
+          </div>
         </section>
         <p id="eventPageStatus" class="form-status" aria-live="polite">Loading events…</p>
         <div class="event-layout">

@@ -1510,7 +1510,8 @@ button {
   margin-top: 28px;
 }
 
-.event-admin-panel {
+.event-admin-panel,
+.event-request-panel {
   margin-bottom: 24px;
   padding: 24px;
 }
@@ -1522,6 +1523,78 @@ button {
 .event-admin-panel h2 {
   margin: 0;
   font-size: 1.35rem;
+}
+
+.event-request-panel h2,
+.resource-submit-panel h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.event-submission-review {
+  margin-top: 26px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(13, 23, 38, 0.1);
+}
+
+.event-submission-review h3 {
+  margin: 0 0 8px;
+}
+
+.event-submission-item {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px solid rgba(13, 23, 38, 0.1);
+  border-radius: 16px;
+  background: #fffaf5;
+}
+
+.event-submission-item p,
+.event-submission-heading h4 {
+  margin: 0;
+}
+
+.my-event-submissions {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(13, 23, 38, 0.1);
+}
+
+.my-event-submissions h3 {
+  margin: 0 0 8px;
+}
+
+.my-event-submission-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(13, 23, 38, 0.08);
+}
+
+.my-event-submission-item > span:not(.status-pill) {
+  color: var(--muted);
+}
+
+.event-submission-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.event-submission-heading > div {
+  min-width: 0;
+}
+
+.event-submission-heading p {
+  color: var(--muted);
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
 }
 
 .event-admin-form .form-grid {
@@ -3203,6 +3276,11 @@ textarea {
   color: #187a4a;
 }
 
+.status-pill.rejected {
+  background: rgba(177, 44, 44, 0.1);
+  color: #a22c2c;
+}
+
 .lower-grid {
   margin-top: 24px;
 }
@@ -3336,7 +3414,8 @@ textarea {
   padding-top: 34px;
 }
 
-.resource-admin-panel {
+.resource-admin-panel,
+.resource-submit-panel {
   margin-bottom: 24px;
   padding: 24px;
 }
@@ -5130,6 +5209,8 @@ textarea {
   .event-content,
   .application-form-wrap,
   .event-admin-panel,
+  .event-request-panel,
+  .resource-submit-panel,
   .settings-panel,
   .profile-card {
     padding: 18px 16px;
@@ -5179,6 +5260,10 @@ textarea {
   .event-actions,
   .profile-actions {
     align-items: stretch;
+    flex-direction: column;
+  }
+
+  .event-submission-heading {
     flex-direction: column;
   }
 

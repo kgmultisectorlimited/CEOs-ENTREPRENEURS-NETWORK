@@ -209,6 +209,9 @@ document.addEventListener('DOMContentLoaded', function () {
   const newMessageRecipient = document.getElementById('newMessageRecipient');
   const resourceGrid = document.getElementById('resourceGrid');
   const resourceStatus = document.getElementById('resourceStatus');
+  const resourceSubmissionForm = document.getElementById('resourceSubmissionForm');
+  const resourceSubmissionStatus = document.getElementById('resourceSubmissionStatus');
+  const resourceSubmissionSubmit = document.getElementById('resourceSubmissionSubmit');
   const resourceAdminForm = document.getElementById('resourceAdminForm');
   const resourceAdminStatus = document.getElementById('resourceAdminStatus');
   const resourceFormHeading = document.getElementById('resourceFormHeading');
@@ -255,7 +258,14 @@ document.addEventListener('DOMContentLoaded', function () {
   const eventListing = document.getElementById('eventListing');
   const eventPageStatus = document.getElementById('eventPageStatus');
   const eventAdminForm = document.getElementById('eventAdminForm');
+  const eventRequestForm = document.getElementById('eventRequestForm');
+  const eventRequestStatus = document.getElementById('eventRequestStatus');
+  const eventRequestSubmit = document.getElementById('eventRequestSubmit');
   const eventAdminStatus = document.getElementById('eventAdminStatus');
+  const eventSubmissionsList = document.getElementById('eventSubmissionsList');
+  const eventSubmissionsStatus = document.getElementById('eventSubmissionsStatus');
+  const myEventSubmissionsList = document.getElementById('myEventSubmissionsList');
+  const myEventSubmissionsStatus = document.getElementById('myEventSubmissionsStatus');
   const eventFormHeading = document.getElementById('eventFormHeading');
   const eventFormSubmit = document.getElementById('eventFormSubmit');
   const nextEventSummary = document.getElementById('nextEventSummary');
@@ -1285,6 +1295,93 @@ async function loadEvents() {
   }
 }
 
+async function loadEventSubmissionQueue() {
+  if (!eventSubmissionsList || !window.KG_IS_ADMIN || !window.KGData) return;
+  setStatus(eventSubmissionsStatus, 'Loading member requests…');
+  try {
+    const submissions = await window.KGData.loadEventSubmissions();
+    eventSubmissionsList.replaceChildren();
+    if (!submissions.length) {
+      setStatus(eventSubmissionsStatus, 'There are no event requests waiting for review.');
+      return;
+    }
+    submissions.forEach((submission) => {
+      const item = document.createElement('article');
+      item.className = 'event-submission-item';
+      const heading = document.createElement('div');
+      heading.className = 'event-submission-heading';
+      const title = document.createElement('h4');
+      title.textContent = submission.title;
+      const requester = document.createElement('p');
+      requester.textContent = `Requested by ${submission.profiles?.full_name || 'Member'}${submission.profiles?.email ? ` · ${submission.profiles.email}` : ''}`;
+      heading.append(title, requester);
+      const details = document.createElement('p');
+      details.textContent = `${submission.event_type} · ${formatEventDate(submission.date)} · ${submission.venue}`;
+      const description = document.createElement('p');
+      description.textContent = submission.description || 'No description provided.';
+      const capacity = document.createElement('p');
+      capacity.textContent = `Capacity: ${submission.seats_available > 0 ? submission.seats_available : 'Unlimited'} · Entry: ${submission.price || 'Member session'}`;
+      const actions = document.createElement('div');
+      actions.className = 'event-actions';
+      [['approved', 'Approve and publish'], ['rejected', 'Reject']].forEach(([decision, label]) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `btn ${decision === 'approved' ? 'btn-primary' : 'btn-secondary'}`;
+        button.textContent = label;
+        button.addEventListener('click', async () => {
+          button.disabled = true;
+          try {
+            const result = await window.KGData.reviewEventSubmission(submission.id, decision);
+            if (!result.success) throw new Error(result.message);
+            await Promise.all([loadEventSubmissionQueue(), loadEvents(), loadConversationListings()]);
+            setStatus(eventAdminStatus, result.message, 'success');
+          } catch (error) {
+            setStatus(eventSubmissionsStatus, error.message, 'error');
+            button.disabled = false;
+          }
+        });
+        actions.append(button);
+      });
+      item.append(heading, details, description, capacity, actions);
+      eventSubmissionsList.append(item);
+    });
+    setStatus(eventSubmissionsStatus, `${submissions.length} event request${submissions.length === 1 ? '' : 's'} awaiting review.`);
+  } catch (error) {
+    eventSubmissionsList.replaceChildren();
+    setStatus(eventSubmissionsStatus, error.message, 'error');
+  }
+}
+
+async function loadMyEventSubmissions() {
+  if (!myEventSubmissionsList || !window.KGData) return;
+  setStatus(myEventSubmissionsStatus, 'Loading your event requests…');
+  try {
+    const submissions = await window.KGData.loadMyEventSubmissions();
+    myEventSubmissionsList.replaceChildren();
+    if (!submissions.length) {
+      setStatus(myEventSubmissionsStatus, 'You have not submitted an event request yet.');
+      return;
+    }
+    submissions.forEach((submission) => {
+      const item = document.createElement('article');
+      item.className = 'my-event-submission-item';
+      const title = document.createElement('strong');
+      title.textContent = submission.title;
+      const details = document.createElement('span');
+      details.textContent = `${formatEventDate(submission.date)} · ${submission.venue}`;
+      const status = document.createElement('span');
+      status.className = `status-pill ${submission.status === 'approved' ? 'approved' : submission.status === 'rejected' ? 'rejected' : 'review'}`;
+      status.textContent = submission.status === 'approved' ? 'Approved and published' : submission.status === 'rejected' ? 'Not approved' : 'Pending review';
+      item.append(title, details, status);
+      myEventSubmissionsList.append(item);
+    });
+    setStatus(myEventSubmissionsStatus, `${submissions.length} event request${submissions.length === 1 ? '' : 's'}.`);
+  } catch (error) {
+    myEventSubmissionsList.replaceChildren();
+    setStatus(myEventSubmissionsStatus, error.message, 'error');
+  }
+}
+
 function formatRelativeDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'Date unavailable';
@@ -2082,7 +2179,11 @@ function renderResources() {
     category.textContent = resource.category;
     const state = document.createElement('span');
     state.className = 'resource-read';
-    state.textContent = resource.published ? 'Member resource' : 'Draft';
+    state.textContent = resource.review_status === 'pending'
+      ? 'Pending review'
+      : resource.review_status === 'rejected'
+        ? 'Not approved'
+        : resource.published ? 'Member resource' : 'Draft';
     top.append(category, state);
     const preview = document.createElement('div');
     preview.className = `resource-preview ${previews[index % previews.length]}`;
@@ -2118,6 +2219,27 @@ function renderResources() {
     if (window.KG_IS_ADMIN) {
       const adminActions = document.createElement('div');
       adminActions.className = 'resource-admin-actions';
+      if (resource.review_status === 'pending') {
+        [['approved', 'Approve and publish'], ['rejected', 'Reject']].forEach(([decision, label]) => {
+          const review = document.createElement('button');
+          review.type = 'button';
+          review.className = `btn ${decision === 'approved' ? 'btn-primary' : 'btn-secondary'} small-btn`;
+          review.textContent = label;
+          review.addEventListener('click', async () => {
+            review.disabled = true;
+            try {
+              const result = await window.KGData.reviewResourceSubmission(resource.id, decision);
+              if (!result.success) throw new Error(result.message);
+              await loadResourceLibrary();
+              setStatus(resourceAdminStatus, result.message, 'success');
+            } catch (error) {
+              setStatus(resourceAdminStatus, error.message, 'error');
+              review.disabled = false;
+            }
+          });
+          adminActions.append(review);
+        });
+      }
       const edit = document.createElement('button');
       edit.type = 'button';
       edit.className = 'btn btn-secondary small-btn';
@@ -2534,6 +2656,8 @@ async function loadMemberDirectory() {
     loadAdminApplications();
     loadMemberDirectory();
     loadEvents();
+    loadEventSubmissionQueue();
+    loadMyEventSubmissions();
     loadConversationListings();
     loadCommunityForum();
     loadModerationQueue();
@@ -2855,6 +2979,26 @@ async function loadMemberDirectory() {
     });
   }
 
+  if (resourceSubmissionForm) {
+    resourceSubmissionForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const submit = resourceSubmissionSubmit;
+      submit.disabled = true;
+      setStatus(resourceSubmissionStatus, 'Submitting resource for review…');
+      try {
+        const result = await window.KGData.submitResourceForReview(readForm(resourceSubmissionForm));
+        if (!result.success) throw new Error(result.message);
+        resourceSubmissionForm.reset();
+        await loadResourceLibrary();
+        setStatus(resourceSubmissionStatus, result.message, 'success');
+      } catch (error) {
+        setStatus(resourceSubmissionStatus, error.message, 'error');
+      } finally {
+        submit.disabled = false;
+      }
+    });
+  }
+
   if (resourceAdminForm) {
     resourceAdminForm.addEventListener('reset', () => {
       setTimeout(() => {
@@ -2879,6 +3023,26 @@ async function loadMemberDirectory() {
         setStatus(resourceAdminStatus, error.message, 'error');
       } finally {
         resourceFormSubmit.disabled = false;
+      }
+    });
+  }
+
+  if (eventRequestForm) {
+    eventRequestForm.elements.namedItem('date').min = toDateTimeLocal(new Date().toISOString());
+    eventRequestForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      eventRequestSubmit.disabled = true;
+      setStatus(eventRequestStatus, 'Sending event request…');
+      try {
+        const result = await window.KGData.submitEventRequest(readForm(eventRequestForm));
+        if (!result.success) throw new Error(result.message);
+        eventRequestForm.reset();
+        await loadMyEventSubmissions();
+        setStatus(eventRequestStatus, result.message, 'success');
+      } catch (error) {
+        setStatus(eventRequestStatus, error.message, 'error');
+      } finally {
+        eventRequestSubmit.disabled = false;
       }
     });
   }
