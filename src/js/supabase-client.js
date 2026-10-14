@@ -783,8 +783,21 @@
     const profile = profileResult.profile;
     const channel = client.channel('member-presence', {
       config: { private: true, presence: { key: profile.id } }
-    }).on('presence', { event: 'sync' }, () => {
-      onUpdate(Object.keys(channel.presenceState()));
+    });
+    let previousProfileIds = new Set();
+    let hasReceivedInitialSync = false;
+    channel.on('presence', { event: 'sync' }, () => {
+      const profileIds = Object.keys(channel.presenceState());
+      const currentProfileIds = new Set(profileIds);
+      const newlyOnlineProfileIds = hasReceivedInitialSync
+        ? profileIds.filter((profileId) => !previousProfileIds.has(profileId))
+        : [];
+      hasReceivedInitialSync = true;
+      previousProfileIds = currentProfileIds;
+      onUpdate(
+        profileIds.filter((profileId) => profileId !== profile.id),
+        newlyOnlineProfileIds.filter((profileId) => profileId !== profile.id)
+      );
     });
 
     try {

@@ -1010,6 +1010,55 @@ button {
   background: #20a464;
 }
 
+.presence-notice-stack {
+  position: fixed;
+  z-index: 1200;
+  right: 20px;
+  bottom: 24px;
+  display: grid;
+  gap: 10px;
+  width: min(360px, calc(100vw - 32px));
+}
+
+.presence-notice {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(13, 23, 38, 0.12);
+  border-left: 4px solid #20a464;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(13, 23, 38, 0.18);
+  color: var(--ink);
+  font-size: 0.88rem;
+}
+
+.presence-notice a {
+  color: #b45309;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.presence-notice-dismiss {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .presence-notice-stack {
+    right: 16px;
+    bottom: calc(82px + env(safe-area-inset-bottom));
+  }
+}
+
 .new-message-controls {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

@@ -17,6 +17,10 @@ document.addEventListener('DOMContentLoaded', function () {
   let memberNavigationSubscription = null;
   let memberPresenceSubscription = null;
   let onlineMemberIds = new Set();
+  const presenceMembers = new Map();
+  const pendingPresenceNotices = new Set();
+  const activePresenceNotices = new Map();
+  let presenceNoticeContainer = null;
   let navigationCountRefresh = null;
   if (appRole === 'member' || appRole === 'admin') {
     const memberItems = [
@@ -520,6 +524,7 @@ document.addEventListener('DOMContentLoaded', function () {
         window.KGData.loadMemberDirectory(),
         window.KGData.loadConnectionRequests()
       ]);
+      registerPresenceMembers(members);
       networkMembers = members;
       networkRequests = relationshipData.requests;
       networkProfile = relationshipData.profile;
@@ -1914,6 +1919,74 @@ function updatePresenceIndicators() {
   });
 }
 
+function registerPresenceMembers(members) {
+  members.forEach((member) => presenceMembers.set(member.id, member));
+  pendingPresenceNotices.forEach((profileId) => {
+    if (!onlineMemberIds.has(profileId)) {
+      pendingPresenceNotices.delete(profileId);
+      return;
+    }
+    if (presenceMembers.has(profileId)) {
+      pendingPresenceNotices.delete(profileId);
+      showMemberOnlineNotice(profileId);
+    }
+  });
+}
+
+function showMemberOnlineNotice(profileId) {
+  if (profileId === messageProfile?.id || activePresenceNotices.has(profileId)) return;
+  const member = presenceMembers.get(profileId);
+  if (!member) {
+    pendingPresenceNotices.add(profileId);
+    return;
+  }
+
+  if (!presenceNoticeContainer) {
+    presenceNoticeContainer = document.createElement('div');
+    presenceNoticeContainer.className = 'presence-notice-stack';
+    presenceNoticeContainer.setAttribute('role', 'status');
+    presenceNoticeContainer.setAttribute('aria-live', 'polite');
+    presenceNoticeContainer.setAttribute('aria-label', 'Online member alerts');
+    document.body.append(presenceNoticeContainer);
+  }
+
+  while (presenceNoticeContainer.childElementCount >= 3) {
+    const oldestNotice = presenceNoticeContainer.firstElementChild;
+    if (!oldestNotice) break;
+    const oldestProfileId = oldestNotice.dataset.profileId;
+    window.clearTimeout(activePresenceNotices.get(oldestProfileId));
+    activePresenceNotices.delete(oldestProfileId);
+    oldestNotice.remove();
+  }
+
+  const notice = document.createElement('div');
+  notice.className = 'presence-notice';
+  notice.dataset.profileId = profileId;
+  const copy = document.createElement('span');
+  copy.textContent = `${member.full_name || 'A member'} is now online.`;
+  const memberLink = document.createElement('a');
+  memberLink.href = 'members-directory.html';
+  memberLink.textContent = 'View members';
+  const dismiss = document.createElement('button');
+  dismiss.type = 'button';
+  dismiss.className = 'presence-notice-dismiss';
+  dismiss.setAttribute('aria-label', 'Dismiss online alert');
+  dismiss.textContent = '×';
+  const closeNotice = () => {
+    window.clearTimeout(activePresenceNotices.get(profileId));
+    activePresenceNotices.delete(profileId);
+    notice.remove();
+    if (!presenceNoticeContainer.childElementCount) {
+      presenceNoticeContainer.remove();
+      presenceNoticeContainer = null;
+    }
+  };
+  dismiss.addEventListener('click', closeNotice);
+  notice.append(copy, memberLink, dismiss);
+  presenceNoticeContainer.append(notice);
+  activePresenceNotices.set(profileId, window.setTimeout(closeNotice, 7000));
+}
+
 async function handleDirectCallSignal(call, payload) {
   if (activeCall !== call || payload?.callId !== call.id) return;
   if (payload.type === 'declined') {
@@ -2139,6 +2212,7 @@ async function loadMessages() {
     directMessages = messageResult.messages;
     messageProfile = messageResult.profile;
     messageDirectory = members;
+    registerPresenceMembers(members);
     void ensureDirectCallInbox();
     const recipientSelect = newMessageRecipient;
     if (recipientSelect) {
@@ -2492,6 +2566,7 @@ async function loadMemberDirectory() {
         window.KGData.loadMemberDirectory(),
         window.KGData.loadConnectionRequests()
       ]);
+      registerPresenceMembers(members);
       directoryRequests = relationshipData.requests;
       directoryProfile = relationshipData.profile;
       memberDirectoryGrid.replaceChildren();
@@ -2687,9 +2762,10 @@ async function loadMemberDirectory() {
     refreshMobileNavigationCounts();
     if (!memberPresenceSubscription && window.KGData?.subscribeToMemberPresence) {
       window.KGData.subscribeToMemberPresence(
-        (profileIds) => {
+        (profileIds, newlyOnlineProfileIds) => {
           onlineMemberIds = new Set(profileIds);
           updatePresenceIndicators();
+          newlyOnlineProfileIds.forEach(showMemberOnlineNotice);
         },
         (error) => {
           onlineMemberIds = new Set();
