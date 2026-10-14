@@ -1345,7 +1345,9 @@ function renderMessages() {
     time.textContent = latest ? formatRelativeDate(latest.created_at) : 'New';
     topline.append(name, time);
     const preview = document.createElement('span');
-    preview.textContent = latest?.content || 'Start a conversation';
+    preview.textContent = latest?.content || (latest?.media_path
+      ? (latest.media_error ? 'Attachment unavailable' : 'Attachment')
+      : 'Start a conversation');
     copy.append(topline, preview);
     item.append(avatar, copy);
     item.addEventListener('click', () => openMessageConversation(partnerId));
@@ -1394,7 +1396,14 @@ function renderMessages() {
       bubble.append(body);
     }
     const attachment = makeMediaNode(message.media_path, message.media_url, 'Message attachment');
-    if (attachment) bubble.append(attachment);
+    if (attachment) {
+      bubble.append(attachment);
+    } else if (message.media_path) {
+      const attachmentStatus = document.createElement('p');
+      attachmentStatus.className = 'form-status error';
+      attachmentStatus.textContent = `Attachment unavailable: ${message.media_error || 'the file could not be opened.'}`;
+      bubble.append(attachmentStatus);
+    }
     const time = document.createElement('time');
     time.dateTime = message.created_at;
     time.textContent = new Intl.DateTimeFormat(undefined, { dateStyle: 'short', timeStyle: 'short' }).format(new Date(message.created_at));

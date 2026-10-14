@@ -626,7 +626,23 @@
       .or(`sender_profile_id.eq.${profileResult.profile.id},recipient_profile_id.eq.${profileResult.profile.id}`)
       .order('created_at', { ascending: true });
     if (error) throw new Error(`Messages could not be loaded: ${error.message}`);
-    return { messages: await withSignedMedia(data, 'media_path'), profile: profileResult.profile };
+    const messages = await Promise.all((data || []).map(async (message) => {
+      if (!message.media_path) return { ...message, media_url: null, media_error: null };
+      try {
+        return {
+          ...message,
+          media_url: await createSignedMediaUrl(message.media_path),
+          media_error: null
+        };
+      } catch (mediaError) {
+        return {
+          ...message,
+          media_url: null,
+          media_error: mediaError.message
+        };
+      }
+    }));
+    return { messages, profile: profileResult.profile };
   }
 
   async function sendDirectMessage(recipientProfileId, payload) {
