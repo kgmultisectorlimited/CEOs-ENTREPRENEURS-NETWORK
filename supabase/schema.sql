@@ -199,6 +199,33 @@ as $$
   );
 $$;
 
+create or replace function public.can_continue_direct_conversation(
+  p_sender_profile_id uuid,
+  p_recipient_profile_id uuid
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+set row_security = off
+as $$
+  select exists (
+    select 1
+    from public.profiles sender
+    join public.profiles recipient on recipient.id = p_recipient_profile_id
+    where sender.id = p_sender_profile_id
+      and sender.auth_user_id = auth.uid()
+      and sender.id <> recipient.id
+      and exists (
+        select 1
+        from public.direct_messages dm
+        where (dm.sender_profile_id = sender.id and dm.recipient_profile_id = recipient.id)
+           or (dm.sender_profile_id = recipient.id and dm.recipient_profile_id = sender.id)
+      )
+  );
+$$;
+
 create or replace function public.can_receive_connection_request(target_profile_id uuid)
 returns boolean
 language sql
@@ -216,8 +243,10 @@ as $$
 $$;
 
 revoke all on function public.can_receive_direct_message(uuid) from public, anon;
+revoke all on function public.can_continue_direct_conversation(uuid, uuid) from public, anon;
 revoke all on function public.can_receive_connection_request(uuid) from public, anon;
 grant execute on function public.can_receive_direct_message(uuid) to authenticated;
+grant execute on function public.can_continue_direct_conversation(uuid, uuid) to authenticated;
 grant execute on function public.can_receive_connection_request(uuid) to authenticated;
 
 create or replace function public.notify_direct_message_recipient()
@@ -660,7 +689,8 @@ create policy "Participants can view direct messages"
     )
   );
 drop policy if exists "Members can message opted-in members" on public.direct_messages;
-create policy "Members can message opted-in members"
+drop policy if exists "Members can message opted-in members or continue conversations" on public.direct_messages;
+create policy "Members can message opted-in members or continue conversations"
   on public.direct_messages for insert
   to authenticated
   with check (
@@ -668,7 +698,10 @@ create policy "Members can message opted-in members"
       select 1 from public.profiles
       where id = sender_profile_id and auth_user_id = auth.uid()
     )
-    and public.can_receive_direct_message(recipient_profile_id)
+    and (
+      public.can_receive_direct_message(recipient_profile_id)
+      or public.can_continue_direct_conversation(sender_profile_id, recipient_profile_id)
+    )
   );
 drop policy if exists "Recipients can mark messages read" on public.direct_messages;
 create policy "Recipients can mark messages read"

@@ -1402,17 +1402,17 @@ function renderMessages() {
   }
   nameNode.textContent = partner.full_name || 'Member';
   initialsNode.textContent = initialsFor(partner.full_name);
-  metaNode.textContent = partner.allow_dm
-    ? 'Member messages are private.'
-    : 'New messages are off; calls remain available here.';
   profileLink.href = 'members-directory.html';
-  sendButton.disabled = !partner.allow_dm;
-  document.getElementById('recordVoiceMessageButton').disabled = !partner.allow_dm && !voiceRecorder;
   const threadMessages = directMessages.filter((message) =>
     (message.sender_profile_id === messageProfile.id && message.recipient_profile_id === activeMessagePartnerId) ||
     (message.recipient_profile_id === messageProfile.id && message.sender_profile_id === activeMessagePartnerId)
   );
   const hasExistingConversation = threadMessages.length > 0;
+  metaNode.textContent = partner.allow_dm
+    ? 'Member messages are private.'
+    : 'New conversations are off; this conversation remains open.';
+  sendButton.disabled = !(partner.allow_dm || hasExistingConversation);
+  document.getElementById('recordVoiceMessageButton').disabled = !(partner.allow_dm || hasExistingConversation) && !voiceRecorder;
   document.getElementById('startAudioCallButton').disabled = !hasExistingConversation || Boolean(activeCall);
   document.getElementById('startVideoCallButton').disabled = !hasExistingConversation || Boolean(activeCall);
   chatThread.replaceChildren();

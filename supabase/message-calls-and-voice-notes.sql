@@ -6,6 +6,52 @@ set allowed_mime_types = array_cat(
 where id = 'community-media'
   and not coalesce(allowed_mime_types, array[]::text[]) @> array['audio/webm']::text[];
 
+create or replace function public.can_continue_direct_conversation(
+  p_sender_profile_id uuid,
+  p_recipient_profile_id uuid
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+set row_security = off
+as $$
+  select exists (
+    select 1
+    from public.profiles sender
+    join public.profiles recipient on recipient.id = p_recipient_profile_id
+    where sender.id = p_sender_profile_id
+      and sender.auth_user_id = auth.uid()
+      and sender.id <> recipient.id
+      and exists (
+        select 1
+        from public.direct_messages dm
+        where (dm.sender_profile_id = sender.id and dm.recipient_profile_id = recipient.id)
+           or (dm.sender_profile_id = recipient.id and dm.recipient_profile_id = sender.id)
+      )
+  );
+$$;
+
+revoke all on function public.can_continue_direct_conversation(uuid, uuid) from public, anon;
+grant execute on function public.can_continue_direct_conversation(uuid, uuid) to authenticated;
+
+drop policy if exists "Members can message opted-in members" on public.direct_messages;
+drop policy if exists "Members can message opted-in members or continue conversations" on public.direct_messages;
+create policy "Members can message opted-in members or continue conversations"
+  on public.direct_messages for insert
+  to authenticated
+  with check (
+    exists (
+      select 1 from public.profiles
+      where id = sender_profile_id and auth_user_id = auth.uid()
+    )
+    and (
+      public.can_receive_direct_message(recipient_profile_id)
+      or public.can_continue_direct_conversation(sender_profile_id, recipient_profile_id)
+    )
+  );
+
 create table if not exists public.direct_call_invites (
   id uuid primary key default gen_random_uuid(),
   caller_profile_id uuid not null references public.profiles(id) on delete cascade,

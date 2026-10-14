@@ -699,7 +699,7 @@
       return {
         success: false,
         message: error.code === '42501'
-          ? 'This member is not accepting direct messages.'
+          ? 'New messages are turned off for this member. Continuing an existing conversation requires the latest message-policy migration.'
           : `Message could not be sent: ${error.message}`
       };
     }
